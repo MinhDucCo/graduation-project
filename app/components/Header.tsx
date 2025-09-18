@@ -17,6 +17,8 @@ export default function Header() {
           <Link href="/tin-tuc">TIN TỨC</Link>
           <Link href="/gioi-thieu">GIỚI THIỆU</Link>
           <Link href="/lien-he">LIÊN HỆ</Link>
+          <Link href="/lien-he">Đăng Nhập</Link>
+          <Link href="/lien-he">Đăng Ký</Link>
         </nav>
 
         {/* Buttons */}
