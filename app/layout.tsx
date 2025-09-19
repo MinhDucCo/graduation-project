@@ -1,8 +1,9 @@
-  import type { Metadata } from "next";
+import type { Metadata } from "next";
   import { Geist, Geist_Mono } from "next/font/google";
   import "./globals.css";
   import Header from "./components/Header";
   import Footer from "./components/Footer";
+  import HeroSlider from "./components/HeroSlider";
   import Link from "next/link";
 
   const geistSans = Geist({
@@ -30,12 +31,7 @@
         <body>
 
           <Header />
-          <section className="py-12 bg-gray-50">
-            <div className="container mx-auto px-4">
-              <h2 className="text-3xl md:text-4xl font-bold mb-8 text-center text-teal-700">
-              </h2>
-            </div>
-          </section>
+           <HeroSlider />
           {children}
           <Footer />
         </body>

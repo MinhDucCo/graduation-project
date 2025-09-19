@@ -1,55 +1,71 @@
-// "use client"; //useEffect, useState, onClick, window, document,... chỉ dùng được trong "use client" component.
-// import { useEffect, useState } from 'react';
-// const slides = [
-//   {
-//     image: '/image/slide111.jpg',
-//     title: 'Du lịch cùng benthanhtourist',
-//     subtitle: 'Cập nhật tin tức mới nhất về tour du lịch chất lượng cao',
-//   },
-//   {
-//     image: '/image/slide222.jpg',
-//     title: 'Tour hấp dẫn mỗi mùa',
-//     subtitle: 'Đặt ngay để nhận ưu đãi đặc biệt',
-//   },
-//   {
-//     image: '/image/slide333.jpg',
-//     title: 'Chuyến đi trong mơ',
-//     subtitle: 'Trải nghiệm hành trình tuyệt vời',
-//   },
-// ];
+"use client"
+import { useState, useEffect } from "react";
+const images = [
+  "/images/banner-phukien.png", // đổi thành ảnh của bạn trong public/images
+  "/images/banner2.webp",
+  "/images/slide_mam_do_2.jpg",
+];
 
-// const HeroSlider = () => {
-//   const [currentIndex, setCurrentIndex] = useState(0);
+export default function HeroSlider() {
+  const [currentIndex, setCurrentIndex] = useState(0);
 
-//   useEffect(() => {
-//     const interval = setInterval(() => {
-//       setCurrentIndex(prev => (prev + 1) % slides.length);
-//     }, 4500);
-//     return () => clearInterval(interval);
-//   }, []);
+  // Tự động chuyển ảnh sau 3 giây
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentIndex((prev) => (prev + 1) % images.length);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
-//   const { image, title, subtitle } = slides[currentIndex];
+  return (
+    <div className="relative w-full h-[500px] overflow-hidden">
+      {/* Slide images */}
+      <div
+        className="flex transition-transform duration-700 ease-in-out"
+        style={{ transform: `translateX(-${currentIndex * 100}%)` }}
+      >
+        {images.map((src, index) => (
+          <img
+            key={index}
+            src={src}
+            alt={`Slide ${index + 1}`}
+            className="w-full h-[500px] object-cover flex-shrink-0"
+          />
+        ))}
+      </div>
 
-//   return (
-//     <section
-//       className="relative bg-cover bg-center bg-no-repeat text-white min-h-[500px] flex items-center justify-center transition-all duration-1000 ease-in-out"
-//       style={{ backgroundImage: `url(${image})` }}
-//     >
-//       <div className="absolute inset-0 bg-[rgba(0,0,0,0.4)]"></div>
-//       <div className="relative z-10 text-center px-4 max-w-3xl">
-//         <h1 className="text-4xl md:text-6xl font-bold mb-4">{title}</h1>
-//         <p className="text-xl mb-6">{subtitle}</p>
-//         <div className="flex justify-center gap-4">
-//           {/* <Link to="/news" className="bg-white text-blue-600 px-6 py-2 rounded-full font-semibold hover:bg-gray-100 transition">
-//             Xem tin tức
-//           </Link>
-//           <Link to="/tours" className="bg-secondary text-black px-6 py-2 rounded-full font-semibold hover:bg-secondary/90 transition">
-//             Khám phá tour
-//           </Link> */}
-//         </div>
-//       </div>
-//     </section>
-//   );
-// };
+      {/* Dots indicator */}
+      <div className="absolute bottom-5 left-1/2 transform -translate-x-1/2 flex gap-3">
+        {images.map((_, index) => (
+          <button
+            key={index}
+            onClick={() => setCurrentIndex(index)}
+            className={`w-3 h-3 rounded-full ${
+              currentIndex === index ? "bg-white" : "bg-gray-400"
+            }`}
+          />
+        ))}
+      </div>
 
-// export default HeroSlider;
+      {/* Prev & Next button */}
+      <button
+        onClick={() =>
+          setCurrentIndex((prev) =>
+            prev === 0 ? images.length - 1 : prev - 1
+          )
+        }
+        className="absolute left-5 top-1/2 -translate-y-1/2 bg-black/40 text-white px-3 py-2 rounded-full"
+      >
+        ‹
+      </button>
+      <button
+        onClick={() =>
+          setCurrentIndex((prev) => (prev + 1) % images.length)
+        }
+        className="absolute right-5 top-1/2 -translate-y-1/2 bg-black/40 text-white px-3 py-2 rounded-full"
+      >
+        ›
+      </button>
+    </div>
+  );
+}
