@@ -1,3 +1,5 @@
+// Component Giới Thiệu Công Ty
+
 import React from "react";
 import { Briefcase } from "lucide-react"; // icon (cần cài: npm install lucide-react)
 const AboutCompany = () => {

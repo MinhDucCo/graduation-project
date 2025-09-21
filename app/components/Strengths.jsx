@@ -1,3 +1,4 @@
+// Component Thế Mạnh Của Chúng Tôi
 import React from "react";
 import { Settings, Award, DollarSign } from "lucide-react"; // npm install lucide-react
 

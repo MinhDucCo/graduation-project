@@ -6,6 +6,7 @@ import type { Metadata } from "next";
   import HeroSlider from "./components/HeroSlider";
   import AboutCompany from "./components/AboutCompany";
   import Strengths from "./components/Strengths";
+  import Partners from "./components/Partners";
   import Link from "next/link";
 
   const geistSans = Geist({
@@ -37,6 +38,7 @@ import type { Metadata } from "next";
            <AboutCompany />
            <Strengths />
           {children}
+           <Partners />
           <Footer />
         </body>
       </html>
