@@ -37,14 +37,14 @@ export default function Header() {
         </div>
 
         {/* Hotline & Button */}
-        <div className="flex gap-3">
+        <div className="flex gap-2">
           <a
             href="tel:0909123456"
-            className="bg-red-600 text-white px-4 py-2 rounded-md font-semibold hover:bg-red-700"
+            className="bg-red-600 text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-red-700 transition"
           >
-            HOTLINE: 0909 123 456
+            HOTLINE: 0000 292 000
           </a>
-          <button className="bg-red-600 text-white px-4 py-2 rounded-md font-semibold hover:bg-red-700">
+          <button className="bg-red-600 text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-red-700 transition">
             LIÊN HỆ LÀM ĐẠI LÝ
           </button>
         </div>
