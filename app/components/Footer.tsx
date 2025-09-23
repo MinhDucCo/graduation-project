@@ -26,9 +26,9 @@ const Footer: React.FC = () => {
         {/* Left Info */}
         <div>
           <img
-            src="/logo.png"
-            alt="Phát Thịnh Moto"
-            className="mb-4 w-60"
+            src="/images/logo_gearX-removebg.png"
+            alt="gearX"
+            className="w-60"
           />
           <p className="mb-4">
             content

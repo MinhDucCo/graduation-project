@@ -6,9 +6,9 @@ export default function Header() {
         {/* Logo */}
         <div className="flex items-center">
           <img
-            src="/images/logo1.jpg" // đổi logo của bạn
+            src="/images/logo gearX.png" // đổi logo của bạn
             alt="Phụ Tùng Xe Máy"
-            className="h-10"
+            className="h-16 w-auto object-contain"
           />
         </div>
 
