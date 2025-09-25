@@ -28,8 +28,8 @@ const ShowSP: React.FC<ShowSPProps> = ({ sp }) => {
 
         <div className="flex items-center justify-between mt-3">
           <span className="text-red-600 font-bold text-xl">
-            {sp.gia.toLocaleString()} ₫
-          </span>
+  {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(sp.gia)}
+</span>
           <span className="text-sm text-gray-400">
             SL: {sp.so_luong}
           </span>

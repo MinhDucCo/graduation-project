@@ -13,7 +13,10 @@ export interface ISanPham {
   so_luong: number;      // số lượng
   mau_sac: string;       // màu sắc
   mo_ta: string;         // mô tả
-  hinh: string;          // hình ảnh
+  hinh: string | null;          // hình ảnh
   id_loai_xe: number;    // id loại xe
   an_hien: number;       // ẩn hiện
+  hinh_phu1: string | null;
+  hinh_phu2: string |null;
+  hinh_phu3: string | null;
 }

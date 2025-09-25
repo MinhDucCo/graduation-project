@@ -56,21 +56,28 @@ app.get("/api/phu_tung_xe", async (req, res) => {
   }
 });
 
-app.get("/api/phu_tung/:ma_san_pham", async (req, res) => {
-  try {
-    const san_pham = await PhuTungXeModel.findOne({
-      where: { ma_san_pham: req.params.ma_san_pham },
-      include: [{ model: LoaiXeModel, attributes: ['ten_loai'] }],
-    });
-    if (san_pham) {
-      res.json(san_pham);
-    } else {
-      res.status(404).json({ message: "Không tìm thấy sản phẩm" });
-    }
-  } catch (error) {
-    res.status(500).json({ message: "Lỗi server", error: error.message });
-  }
+// app.get("/api/phu_tung/:ma_san_pham", async (req, res) => {
+//   try {
+//     const san_pham = await PhuTungXeModel.findOne({
+//       where: { ma_san_pham: req.params.ma_san_pham },
+//       include: [{ model: LoaiXeModel, attributes: ['ten_loai'] }],
+//     });
+//     if (san_pham) {
+//       res.json(san_pham);
+//     } else {
+//       res.status(404).json({ message: "Không tìm thấy sản phẩm" });
+//     }
+//   } catch (error) {
+//     res.status(500).json({ message: "Lỗi server", error: error.message });
+//   }
+// });
+app.get("/api/sanpham/:ma_san_pham", async (req, res) => {
+  const { ma_san_pham } = req.params;
+  const sp = await PhuTungXeModel.findOne({ where: { ma_san_pham } });
+  if (!sp) return res.status(404).json({ message: "Không tìm thấy" });
+  res.json(sp);
 });
+
 
 app.listen(port, () => {
   console.log(`Server chạy tại http://localhost:${port}`);
