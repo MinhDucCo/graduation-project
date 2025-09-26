@@ -1,19 +1,32 @@
+
+//  TRANG CHI TIẾT SẢN PHẨM
 "use client";
 import { ISanPham } from "../components/cautrucdata";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function ShowDetailSP({ sp }: { sp: ISanPham }) {
-  // danh sách hình: hình chính + hình phụ (demo 3 hình khác nhau)
+  // Danh sách hình: hình chính + hình phụ từ database (đường link ảnh)
   const hinhPhu = [
-    sp.hinh,
-    "https://via.placeholder.com/400x300?text=Hình+phụ+1",
-    "https://via.placeholder.com/400x300?text=Hình+phụ+2",
-    "https://via.placeholder.com/400x300?text=Hình+phụ+3",
+    sp.hinh && sp.hinh.trim() !== "" ? sp.hinh : "https://via.placeholder.com/400x300?text=Hinh+Chinh",
+    sp.hinh_phu1 && sp.hinh_phu1.trim() !== "" ? sp.hinh_phu1 : "https://via.placeholder.com/400x300?text=Hinh+Phu+1",
+    sp.hinh_phu2 && sp.hinh_phu2.trim() !== "" ? sp.hinh_phu2 : "https://via.placeholder.com/400x300?text=Hinh+Phu+2",
+    sp.hinh_phu3 && sp.hinh_phu3.trim() !== "" ? sp.hinh_phu3 : "https://via.placeholder.com/400x300?text=Hinh+Phu+3",
   ];
 
   const [hinhChinh, setHinhChinh] = useState<string>(
-    sp.hinh && sp.hinh.trim() !== "" ? sp.hinh : "/default.jpg"
+    sp.hinh && sp.hinh.trim() !== "" ? sp.hinh : "https://via.placeholder.com/400x300?text=Hinh+Chinh"
   );
+
+  // Kiểm tra lỗi tải ảnh
+  useEffect(() => {
+    const img = new Image();
+    img.src = hinhChinh;
+    img.onload = () => console.log("Hình chính tải thành công:", hinhChinh);
+    img.onerror = () => {
+      console.error("Lỗi tải hình chính - ERR_NAME_NOT_RESOLVED:", hinhChinh);
+      setHinhChinh("https://via.placeholder.com/400x300?text=Loi+Tai+Hinh");
+    };
+  }, [hinhChinh]);
 
   return (
     <div className="max-w-6xl mx-auto my-10 p-6 bg-white shadow-xl rounded-2xl">
@@ -35,6 +48,11 @@ export default function ShowDetailSP({ sp }: { sp: ISanPham }) {
                 className={`w-24 h-24 object-cover rounded-md cursor-pointer border-2 transition 
                   ${hinhChinh === hinh ? "border-blue-600" : "border-gray-200"}`}
                 onClick={() => setHinhChinh(hinh)}
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  console.error(`Lỗi tải hình phụ ${index + 1} - ERR_NAME_NOT_RESOLVED:`, hinh);
+                  target.src = "https://via.placeholder.com/400x300?text=Loi+Tai+Hinh+Phu";
+                }}
               />
             ))}
           </div>

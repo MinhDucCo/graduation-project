@@ -13,7 +13,7 @@ const ShowSP: React.FC<ShowSPProps> = ({ sp }) => {
       {/* Hình ảnh sản phẩm */}
       <div className="w-full h-56 overflow-hidden rounded-xl">
         <img
-          src={sp.hinh}
+           src={sp.hinh ?? "/images/no-image.png"}
           alt={sp.ten_san_pham}
           className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
         />

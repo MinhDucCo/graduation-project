@@ -17,6 +17,6 @@ export interface ISanPham {
   id_loai_xe: number;    // id loại xe
   an_hien: number;       // ẩn hiện
   hinh_phu1: string | null;
-  hinh_phu2: string |null;
+  hinh_phu2: string | null;
   hinh_phu3: string | null;
 }
