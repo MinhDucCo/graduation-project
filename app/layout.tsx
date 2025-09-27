@@ -37,7 +37,7 @@ import type { Metadata } from "next";
            <HeroSlider />
            <AboutCompany />
            <Strengths />
-          {children}
+          <main>{children}</main>
            <Partners />
           <Footer />
         </body>

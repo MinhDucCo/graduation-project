@@ -1,5 +1,5 @@
 
-//  TRANG CHI TIẾT SẢN PHẨM
+// trang chi
 "use client";
 import { ISanPham } from "../components/cautrucdata";
 import { useState, useEffect } from "react";
