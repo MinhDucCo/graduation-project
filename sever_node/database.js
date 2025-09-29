@@ -70,7 +70,10 @@ const PhuTungXeModel = sequelize.define('phu_tung_xe', {
   an_hien: {
     type: DataTypes.INTEGER,
     defaultValue: 1
-  }
+  },
+  hinh_phu1: DataTypes.STRING,
+  hinh_phu2: DataTypes.STRING,
+  hinh_phu3: DataTypes.STRING,
 }, {
   timestamps: false,
   tableName: 'phu_tung_xe'

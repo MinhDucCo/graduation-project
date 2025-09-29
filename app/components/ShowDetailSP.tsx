@@ -1,18 +1,18 @@
-
-// trang chi
 "use client";
 import { ISanPham } from "../components/cautrucdata";
 import { useState, useEffect } from "react";
+
 
 export default function ShowDetailSP({ sp }: { sp: ISanPham }) {
   // Danh sách hình: hình chính + hình phụ từ database (đường link ảnh)
   const hinhPhu = [
     sp.hinh && sp.hinh.trim() !== "" ? sp.hinh : "https://via.placeholder.com/400x300?text=Hinh+Chinh",
-    sp.hinh_phu1 && sp.hinh_phu1.trim() !== "" ? sp.hinh_phu1 : "https://via.placeholder.com/400x300?text=Hinh+Phu+1",
-    sp.hinh_phu2 && sp.hinh_phu2.trim() !== "" ? sp.hinh_phu2 : "https://via.placeholder.com/400x300?text=Hinh+Phu+2",
-    sp.hinh_phu3 && sp.hinh_phu3.trim() !== "" ? sp.hinh_phu3 : "https://via.placeholder.com/400x300?text=Hinh+Phu+3",
+    sp.hinh_phu1 && sp.hinh_phu1.trim() !== "" ? sp.hinh_phu1 : "https://placehold.co/400x300?text=Hinh+Phu+1",
+    sp.hinh_phu2 && sp.hinh_phu2.trim() !== "" ? sp.hinh_phu2 : "https://placehold.co/400x300?text=Hinh+Phu+2",
+    sp.hinh_phu3 && sp.hinh_phu3.trim() !== "" ? sp.hinh_phu3 : "https://placehold.co/400x300?text=Hinh+Phu+3",
   ];
-
+  console.log("Dữ liệu sản phẩm:", sp);
+  console.log("Dữ liệu hình phụ:", { hinh_phu1: sp.hinh_phu1, hinh_phu2: sp.hinh_phu2, hinh_phu3: sp.hinh_phu3 });
   const [hinhChinh, setHinhChinh] = useState<string>(
     sp.hinh && sp.hinh.trim() !== "" ? sp.hinh : "https://via.placeholder.com/400x300?text=Hinh+Chinh"
   );
@@ -27,7 +27,7 @@ export default function ShowDetailSP({ sp }: { sp: ISanPham }) {
       setHinhChinh("https://via.placeholder.com/400x300?text=Loi+Tai+Hinh");
     };
   }, [hinhChinh]);
-
+  
   return (
     <div className="max-w-6xl mx-auto my-10 p-6 bg-white shadow-xl rounded-2xl">
       <div className="flex flex-col md:flex-row gap-8">
@@ -60,6 +60,7 @@ export default function ShowDetailSP({ sp }: { sp: ISanPham }) {
 
         {/* Thông tin sản phẩm */}
         <div className="md:w-1/2 flex flex-col justify-between">
+          <h1 className="text-3xl font-semibold text-gray-800">Chi Tiết Sản Phẩm</h1>
           <div>
             <h3 className="text-3xl font-bold text-gray-800 mb-4">
               {sp.ten_san_pham}
