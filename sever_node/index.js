@@ -61,6 +61,80 @@ app.get("/api/sanpham/:ma_san_pham", async (req, res) => {
   if (!sp) return res.status(404).json({ message: "Không tìm thấy" });
   res.json(sp);
 });
+// Lấy tất cả sản phẩm có an_hien = 2
+app.get("/api/san_pham/an_hien_2", async (req, res) => {
+  try {
+    const sp_arr = await PhuTungXeModel.findAll({
+      where: { an_hien: 2 },
+      order: [["gia", "ASC"]], // sắp xếp theo giá tăng dần
+      include: [
+        {
+          model: LoaiXeModel,
+          attributes: ["ten_loai"], // lấy tên loại xe
+        },
+      ],
+    });
+
+    res.json(sp_arr);
+  } catch (error) {
+    console.error("Lỗi khi lấy sản phẩm:", error);
+    res.status(500).json({ message: "Lỗi server", error: error.message });
+  }
+});
+app.get("/api/san_pham/an_hien_3", async (req, res) => {
+  try {
+    const sp_arr = await PhuTungXeModel.findAll({
+      where: { an_hien: 3 },
+      order: [["gia", "ASC"]], // sắp xếp theo giá tăng dần
+      include: [
+        {
+          model: LoaiXeModel,
+          attributes: ["ten_loai"], // lấy tên loại xe
+        },
+      ],
+    });
+
+    res.json(sp_arr);
+  } catch (error) {
+    console.error("Lỗi khi lấy sản phẩm:", error);
+    res.status(500).json({ message: "Lỗi server", error: error.message });
+  }
+});
+// API lấy sản phẩm có phân trang
+app.get("/api/san_pham", async (req, res) => {
+  try {
+    let page = parseInt(req.query.page) || 1; // trang hiện tại
+    let limit = parseInt(req.query.limit) || 8; // số sản phẩm mỗi trang
+    let offset = (page - 1) * limit;
+
+    const { count, rows } = await PhuTungXeModel.findAndCountAll({
+      offset,
+      limit,
+      order: [["gia", "ASC"]],
+      include: [
+        {
+          model: LoaiXeModel,
+          attributes: ["ten_loai"],
+        },
+      ],
+    });
+
+    res.json({
+      total: count,             // tổng số sản phẩm
+      totalPages: Math.ceil(count / limit), 
+      currentPage: page,
+      data: rows,
+    });
+  } catch (error) {
+    console.error("Lỗi khi lấy sản phẩm:", error);
+    res.status(500).json({ message: "Lỗi server", error: error.message });
+  }
+});
+
+
+
+
+
 
 // app.get("/api/tim_kiem/:tu_khoa/:page", async (req, res) => {
 //     let tu_khoa = req.params.tu_khoa;
@@ -85,7 +159,7 @@ app.get('/api/timkiem/:tu_khoa/:page', async (req, res) => {
     const sp_arr = await PhuTungXeModel.findAll({
      where: {
   ten_san_pham: { [Op.like]: `%${tu_khoa}%` }, // thay iLike thành like
-  an_hien: 1,
+  an_hien: 1,an_hien: 2,an_hien: 3,
       },
       order: [['gia', 'ASC']],
       limit: limit,

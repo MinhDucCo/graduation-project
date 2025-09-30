@@ -11,7 +11,7 @@ const ShowSP: React.FC<ShowSPProps> = ({ sp }) => {
   return (
     <div className="bg-white rounded-2xl shadow-md hover:shadow-xl transition p-4 flex flex-col">
       {/* Hình ảnh sản phẩm */}
-      <div className="w-full h-56 overflow-hidden rounded-xl">
+      <div className="w-full h-80 overflow-hidden rounded-xl">
         <img
            src={sp.hinh ?? "/images/no-image.png"}
           alt={sp.ten_san_pham}
