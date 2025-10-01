@@ -1,4 +1,5 @@
 // app/components/HomeSections.tsx
+// tách các section của trang chủ ra component riêng tránh lặp lại trong layout.tsx
 "use client";
 
 import { usePathname } from "next/navigation";

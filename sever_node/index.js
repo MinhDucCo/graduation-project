@@ -61,10 +61,36 @@ app.get("/api/sanpham/:ma_san_pham", async (req, res) => {
   if (!sp) return res.status(404).json({ message: "Không tìm thấy" });
   res.json(sp);
 });
-// Lấy tất cả sản phẩm có an_hien = 2
+// Lấy tất cả sản phẩm có an_hien = 2 Là Xe máy
+// app.get("/api/san_pham/an_hien_2", async (req, res) => {
+//   try {
+//     const sp_arr = await PhuTungXeModel.findAll({
+//       where: { an_hien: 2 },
+//       order: [["gia", "ASC"]], // sắp xếp theo giá tăng dần
+//       include: [
+//         {
+//           model: LoaiXeModel,
+//           attributes: ["ten_loai"], // lấy tên loại xe
+//         },
+//       ],
+//     });
+
+//     res.json(sp_arr);
+//   } catch (error) {
+//     console.error("Lỗi khi lấy sản phẩm:", error);
+//     res.status(500).json({ message: "Lỗi server", error: error.message });
+//   }
+// });
+
 app.get("/api/san_pham/an_hien_2", async (req, res) => {
   try {
-    const sp_arr = await PhuTungXeModel.findAll({
+    // Lấy page & limit từ query, có mặc định
+    let page = parseInt(req.query.page) || 1; // trang hiện tại
+    let limit = parseInt(req.query.limit) || 8; // số sản phẩm mỗi trang
+    let offset = (page - 1) * limit;
+
+    // Lấy danh sách sản phẩm kèm tổng số sản phẩm
+    const { rows: sp_arr, count: total } = await PhuTungXeModel.findAndCountAll({
       where: { an_hien: 2 },
       order: [["gia", "ASC"]], // sắp xếp theo giá tăng dần
       include: [
@@ -73,16 +99,62 @@ app.get("/api/san_pham/an_hien_2", async (req, res) => {
           attributes: ["ten_loai"], // lấy tên loại xe
         },
       ],
+      limit: limit,
+      offset: offset,
     });
 
-    res.json(sp_arr);
+    res.json({
+      data: sp_arr,
+      pagination: {
+        total,               // tổng số sản phẩm
+        page,                // trang hiện tại
+        limit,               // số sản phẩm mỗi trang
+        totalPages: Math.ceil(total / limit), // tổng số trang
+      },
+    });
   } catch (error) {
     console.error("Lỗi khi lấy sản phẩm:", error);
     res.status(500).json({ message: "Lỗi server", error: error.message });
   }
 });
+
+
+
+
+// Lấy tất cả sản phẩm có an_hien = 3 là Ô TÔ
+// app.get("/api/san_pham/an_hien_3", async (req, res) => {
+//   try {
+//     const sp_arr = await PhuTungXeModel.findAll({
+//       where: { an_hien: 3 },
+//       order: [["gia", "ASC"]], // sắp xếp theo giá tăng dần
+//       include: [
+//         {
+//           model: LoaiXeModel,
+//           attributes: ["ten_loai"], // lấy tên loại xe
+//         },
+//       ],
+//     });
+
+//     res.json(sp_arr);
+//   } catch (error) {
+//     console.error("Lỗi khi lấy sản phẩm:", error);
+//     res.status(500).json({ message: "Lỗi server", error: error.message });
+//   }
+// });
+
+// Lấy tất cả sản phẩm có an_hien = 3 (Ô tô) kèm phân trang
 app.get("/api/san_pham/an_hien_3", async (req, res) => {
   try {
+    // Lấy query page & limit từ client
+    let page = parseInt(req.query.page) || 1; // trang hiện tại
+    let limit = parseInt(req.query.limit) || 8; // số sản phẩm mỗi trang
+    let offset = (page - 1) * limit;
+
+    // Đếm tổng số sản phẩm để tính totalPages
+    const totalItems = await PhuTungXeModel.count({ where: { an_hien: 3 } });
+    const totalPages = Math.ceil(totalItems / limit);
+
+    // Lấy danh sách sản phẩm có phân trang
     const sp_arr = await PhuTungXeModel.findAll({
       where: { an_hien: 3 },
       order: [["gia", "ASC"]], // sắp xếp theo giá tăng dần
@@ -92,14 +164,25 @@ app.get("/api/san_pham/an_hien_3", async (req, res) => {
           attributes: ["ten_loai"], // lấy tên loại xe
         },
       ],
+      limit: limit,
+      offset: offset,
     });
 
-    res.json(sp_arr);
+    res.json({
+      data: sp_arr,
+      currentPage: page,
+      totalPages: totalPages,
+      totalItems: totalItems,
+    });
   } catch (error) {
-    console.error("Lỗi khi lấy sản phẩm:", error);
+    console.error("Lỗi khi lấy sản phẩm Ô tô:", error);
     res.status(500).json({ message: "Lỗi server", error: error.message });
   }
 });
+
+
+
+
 // API lấy sản phẩm có phân trang
 app.get("/api/san_pham", async (req, res) => {
   try {
@@ -132,41 +215,25 @@ app.get("/api/san_pham", async (req, res) => {
 });
 
 
-
-
-
-
-// app.get("/api/tim_kiem/:tu_khoa/:page", async (req, res) => {
-//     let tu_khoa = req.params.tu_khoa;
-//     const page = Number(req.params.page) || 1;
-//     const sp_arr = await PhuTungXeModel.findAll({
-//         where: {
-//             ten_san_pham: { [Op.substring]: tu_khoa }, // Sequelize tự hiểu là LIKE '%tu_khoa%'
-//             an_hien: 1
-//         },
-//         order: [['ngay', 'DESC'], ['gia', 'ASC']]
-//     });
-//     res.json(sp_arr);
-// });
-
 // API tìm kiếm
 app.get('/api/timkiem/:tu_khoa/:page', async (req, res) => {
   const tu_khoa = req.params.tu_khoa || '';
   const page = Number(req.params.page) || 1;
   const limit = 9;
   const offset = (page - 1) * limit;
+
   try {
     const sp_arr = await PhuTungXeModel.findAll({
-     where: {
-  ten_san_pham: { [Op.like]: `%${tu_khoa}%` }, // thay iLike thành like
-  an_hien: 1,an_hien: 2,an_hien: 3,
+      where: {
+        ten_san_pham: { [Op.like]: `%${tu_khoa}%` },
+        an_hien: { [Op.in]: [1, 2, 3] }
       },
       order: [['gia', 'ASC']],
       limit: limit,
       offset: offset,
     });
 
-    res.json(sp_arr); // Trả về trực tiếp, không cần ánh xạ
+    res.json(sp_arr);
   } catch (error) {
     console.error('API Error:', error);
     res.status(500).json({ error: 'Không thể lấy dữ liệu sản phẩm' });

@@ -36,7 +36,7 @@ export default function ShowDetailSP({ sp }: { sp: ISanPham }) {
           <img
             src={hinhChinh}
             alt={sp.ten_san_pham || "Sản phẩm"}
-            className="w-full h-[400px] object-cover rounded-lg shadow-md"
+            className="w-full h-[450px] object-cover rounded-lg shadow-md"
           />
           {/* Danh sách hình phụ */}
           <div className="flex gap-4 mt-4">
