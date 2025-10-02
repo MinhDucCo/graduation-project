@@ -90,7 +90,7 @@ function SanPhamXeMay() {
           ⬅ Trước
         </button>
         <span className="px-4 py-2 font-bold text-black-700">
-          Trang {page}/{totalPages}
+          {page}/{totalPages}
         </span>
         <button
           disabled={page === totalPages}
@@ -100,8 +100,6 @@ function SanPhamXeMay() {
           Sau ➡
         </button>
       </div>
-
-
       {/* CSS thủ công */}
       <style jsx>{`
       @keyframes fadeInSlow {
@@ -170,7 +168,7 @@ function PhuTungOto() {
           ⬅ Trước
         </button>
         <span className="px-4 py-2 font-bold text-black-700">
-          Trang {page}/{totalPages}
+          {page}/{totalPages}
         </span>
         <button
           disabled={page === totalPages}

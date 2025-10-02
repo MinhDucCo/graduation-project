@@ -27,7 +27,7 @@ export default function ShowDetailSP({ sp }: { sp: ISanPham }) {
       setHinhChinh("https://via.placeholder.com/400x300?text=Loi+Tai+Hinh");
     };
   }, [hinhChinh]);
-  
+
   return (
     <div className="max-w-6xl mx-auto my-10 p-6 bg-white shadow-xl rounded-2xl">
       <div className="flex flex-col md:flex-row gap-8">
@@ -60,7 +60,7 @@ export default function ShowDetailSP({ sp }: { sp: ISanPham }) {
 
         {/* Thông tin sản phẩm */}
         <div className="md:w-1/2 flex flex-col justify-between">
-          <h1 className="text-3xl font-semibold text-gray-800">Chi Tiết Sản Phẩm</h1>
+          {/* <h1 className="text-3xl font-semibold text-gray-800">Chi Tiết Sản Phẩm</h1> */}
           <div>
             <h3 className="text-3xl font-bold text-gray-800 mb-4">
               {sp.ten_san_pham}
@@ -79,12 +79,24 @@ export default function ShowDetailSP({ sp }: { sp: ISanPham }) {
             </p>
           </div>
 
-          <button
-            type="button"
-            className="mt-6 bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-3 rounded-xl transition duration-300 flex items-center justify-center gap-2"
-          >
-            🛒 Thêm vào giỏ hàng
-          </button>
+          <div className="mt-6 flex gap-4">
+            {/* Nút thêm vào giỏ hàng */}
+            <button
+              type="button"
+              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-3 rounded-xl transition duration-300 flex items-center justify-center gap-2"
+            >
+              🛒 Thêm vào giỏ hàng
+            </button>
+
+            {/* Nút mua ngay */}
+            <button
+              type="button"
+              className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold px-6 py-3 rounded-xl transition duration-300 flex items-center justify-center gap-2"
+            >
+               Mua Ngay
+            </button>
+          </div>
+
         </div>
       </div>
     </div>

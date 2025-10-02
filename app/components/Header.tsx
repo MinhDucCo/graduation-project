@@ -90,7 +90,7 @@ export default function Header() {
             <a href="/tuyen-dung">TUYỂN DỤNG</a>
           </li>
           <li className="hover:underline cursor-pointer">
-            <a href="/tin-tuc">TIN TỨC</a>
+            <a href="/tin">TIN TỨC</a>
           </li>
           <li className="hover:underline cursor-pointer">
             <a href="/lien-he">LIÊN HỆ</a>
