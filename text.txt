@@ -1,240 +1,104 @@
-export default function Header() {
-  return (
-    <header className="w-full shadow-md">
-      {/* Top Bar */}
-      <div className="flex justify-between items-center bg-white px-6 py-2">
-        {/* Logo */}
-        <div className="flex items-center">
-          <img
-            src="/images/logo gearX.png" // đổi logo của bạn
-            alt="Phụ Tùng Xe Máy"
-            className="h-16 w-auto object-contain"
-          />
-        </div>
-
-        {/* Search */}
-        <div className="relative w-1/3">
-          <input
-            type="text"
-            placeholder="Tìm kiếm..."
-            className="w-full border rounded-full py-2 pl-4 pr-10 text-sm focus:outline-none"
-          />
-          {/* icon search bằng SVG */}
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-5 w-5 absolute right-3 top-2.5 text-gray-500"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M21 21l-4.35-4.35M16.65 16.65A7.5 7.5 0 1110.5 3a7.5 7.5 0 016.15 13.65z"
-            />
-          </svg>
-        </div>
-
-        {/* Hotline & Button */}
-        <div className="flex gap-2">
-          <a
-            href="tel:0909123456"
-            className="bg-red-600 text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-red-700 transition"
-          >
-            HOTLINE: 0000 292 000
-          </a>
-          <button className="bg-red-600 text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-red-700 transition">
-            LIÊN HỆ LÀM ĐẠI LÝ
-          </button>
-        </div>
-      </div>
-
-      {/* Navbar */}
-      <nav className="bg-[#1e73be] text-white">
-        <ul className="flex justify-center space-x-8 py-3 font-medium text-sm">
-          <li className="hover:underline cursor-pointer">HOME</li>
-          <li className="hover:underline cursor-pointer">GIỚI THIỆU</li>
-          <li className="hover:underline cursor-pointer">SẢN PHẨM</li>
-          <li className="hover:underline cursor-pointer">KHÁCH HÀNG</li>
-          <li className="hover:underline cursor-pointer">CHÍNH SÁCH</li>
-          <li className="hover:underline cursor-pointer">TUYỂN DỤNG</li>
-          <li className="hover:underline cursor-pointer">TIN TỨC</li>
-          <li className="hover:underline cursor-pointer">LIÊN HỆ</li>
-        </ul>
-      </nav>
-    </header>
-  );
-}
-
-
-
-ma_san_pham
-import { ISanPham } from "@/app/components/cautrucdata";
-import ShowDetailSP from "@/app/components/ShowDetailSP";
-
-export default async function SP({ params }: { params: Promise<{ ma_san_pham: string }> }) {
-  try {
-    const { ma_san_pham } = await params; // ⬅️ cần await
-    const resSP = await fetch(`http://localhost:3000/api/sanpham/${ma_san_pham}`, { cache: "no-store" });
-
-    if (!resSP.ok) {
-      throw new Error(`Lỗi fetch sản phẩm: ${resSP.status}`);
-    }
-
-    const sp: ISanPham = await resSP.json();
-
-    return <ShowDetailSP sp={sp} />;
-  } catch (error: any) {
-    console.error("Không thể fetch dữ liệu sản phẩm:", error.message);
-    return <div>Không thể tải dữ liệu sản phẩm</div>;
-  }
-}
-
-
 "use client";
+import { ISanPham } from "../components/cautrucdata";
+import { useState, useEffect } from "react";
 
-import { useEffect, useState } from "react";
-import { ISanPham } from "@/app/components/cautrucdata";
-import ShowSP from "@/app/components/ShowSP";
 
-function SanPhamXeMay() {
-  const [sp_an_hien2, setSpAnHien2] = useState<ISanPham[]>([]);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const limit = 8;
+export default function ShowDetailSP({ sp }: { sp: ISanPham }) {
+  // Danh sách hình: hình chính + hình phụ từ database (đường link ảnh)
+  const hinhPhu = [
+    sp.hinh && sp.hinh.trim() !== "" ? sp.hinh : "https://via.placeholder.com/400x300?text=Hinh+Chinh",
+    sp.hinh_phu1 && sp.hinh_phu1.trim() !== "" ? sp.hinh_phu1 : "https://placehold.co/400x300?text=Hinh+Phu+1",
+    sp.hinh_phu2 && sp.hinh_phu2.trim() !== "" ? sp.hinh_phu2 : "https://placehold.co/400x300?text=Hinh+Phu+2",
+    sp.hinh_phu3 && sp.hinh_phu3.trim() !== "" ? sp.hinh_phu3 : "https://placehold.co/400x300?text=Hinh+Phu+3",
+  ];
+  console.log("Dữ liệu sản phẩm:", sp);
+  console.log("Dữ liệu hình phụ:", { hinh_phu1: sp.hinh_phu1, hinh_phu2: sp.hinh_phu2, hinh_phu3: sp.hinh_phu3 });
+  const [hinhChinh, setHinhChinh] = useState<string>(
+    sp.hinh && sp.hinh.trim() !== "" ? sp.hinh : "https://via.placeholder.com/400x300?text=Hinh+Chinh"
+  );
+
+  // Kiểm tra lỗi tải ảnh
   useEffect(() => {
-    const fetchSP = async () => {
-      try {
-        const res = await fetch(
-          `http://localhost:3000/api/san_pham/an_hien_2?page=${page}&limit=${limit}`
-        );
-        const data = await res.json();
-
-        setSpAnHien2(data.data);
-        setTotalPages(data.totalPages);
-      } catch (err) {
-        console.error("Lỗi fetch sản phẩm Xe Máy:", err);
-      }
+    const img = new Image();
+    img.src = hinhChinh;
+    img.onload = () => console.log("Hình chính tải thành công:", hinhChinh);
+    img.onerror = () => {
+      console.error("Lỗi tải hình chính - ERR_NAME_NOT_RESOLVED:", hinhChinh);
+      setHinhChinh("https://via.placeholder.com/400x300?text=Loi+Tai+Hinh");
     };
-
-    fetchSP();
-  }, [page]);
+  }, [hinhChinh]);
 
   return (
-    <div className="sphot w-[90%] mb-20 mx-auto">
-      <h2 className="relative font-bold text-red-600 uppercase my-6 text-[1.5em] border-b-2 border-gray-300">
-        <span className="bg-white pr-4">PHỤ TÙNG XE MÁY</span>
-      </h2>
+    <div className="max-w-6xl mx-auto my-10 p-6 bg-white shadow-xl rounded-2xl">
+      <div className="flex flex-col md:flex-row gap-8">
+        {/* Hình ảnh */}
+        <div className="md:w-1/2">
+          <img
+            src={hinhChinh}
+            alt={sp.ten_san_pham || "Sản phẩm"}
+            className="w-full h-[450px] object-cover rounded-lg shadow-md"
+          />
+          {/* Danh sách hình phụ */}
+          <div className="flex gap-4 mt-4">
+            {hinhPhu.map((hinh, index) => (
+              <img
+                key={index}
+                src={hinh}
+                alt={`Hình phụ ${index + 1}`}
+                className={`w-24 h-24 object-cover rounded-md cursor-pointer border-2 transition 
+                  ${hinhChinh === hinh ? "border-blue-600" : "border-gray-200"}`}
+                onClick={() => setHinhChinh(hinh)}
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  console.error(`Lỗi tải hình phụ ${index + 1} - ERR_NAME_NOT_RESOLVED:`, hinh);
+                  target.src = "https://via.placeholder.com/400x300?text=Loi+Tai+Hinh+Phu";
+                }}
+              />
+            ))}
+          </div>
+        </div>
 
-      <div className="grid grid-cols-4 gap-4">
-        {sp_an_hien2.map((sp) => (
-          <ShowSP key={sp.ma_san_pham} sp={sp} />
-        ))}
-      </div>
+        {/* Thông tin sản phẩm */}
+        <div className="md:w-1/2 flex flex-col justify-between">
+          {/* <h1 className="text-3xl font-semibold text-gray-800">Chi Tiết Sản Phẩm</h1> */}
+          <div>
+            <h3 className="text-3xl font-bold text-gray-800 mb-4">
+              {sp.ten_san_pham}
+            </h3>
+            <p className="text-2xl text-red-600 font-semibold mb-4">
+              {Number(sp.gia).toLocaleString("vi-VN")} ₫
+            </p>
+            <p className="text-gray-700 mb-2">
+              <b>Mô tả:</b> {sp.mo_ta}
+            </p>
+            <p className="text-gray-700 mb-2">
+              <b>Màu sắc:</b> {sp.mau_sac || "Chưa có"}
+            </p>
+            <p className="text-gray-700 mb-2">
+              <b>Số lượng:</b> {sp.so_luong}
+            </p>
+          </div>
 
-      <div className="flex justify-center gap-4 mt-6">
-        <button
-          disabled={page === 1}
-          onClick={() => setPage((p) => p - 1)}
-          className="px-4 py-2 bg-gray-200 rounded disabled:opacity-50"
-        >
-          ⬅ Trước
-        </button>
-        <span className="px-4 py-2">
-          Trang {page}/{totalPages}
-        </span>
-        <button
-          disabled={page === totalPages}
-          onClick={() => setPage((p) => p + 1)}
-          className="px-4 py-2 bg-gray-200 rounded disabled:opacity-50"
-        >
-          Sau ➡
-        </button>
+          <div className="mt-6 flex gap-4">
+            {/* Nút thêm vào giỏ hàng */}
+            <button
+              type="button"
+              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-3 rounded-xl transition duration-300 flex items-center justify-center gap-2"
+            >
+              🛒 Thêm vào giỏ hàng
+            </button>
+
+            {/* Nút mua ngay */}
+            <button
+              type="button"
+              className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold px-6 py-3 rounded-xl transition duration-300 flex items-center justify-center gap-2"
+            >
+               Mua Ngay
+            </button>
+          </div>
+
+        </div>
       </div>
     </div>
   );
 }
-
-function PhuTungOto() {
-  const [sp_an_hien3, setSpAnHien3] = useState<ISanPham[]>([]);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const limit = 8;
-
-  useEffect(() => {
-    const fetchSP = async () => {
-      try {
-        const res = await fetch(
-          `http://localhost:3000/api/san_pham/an_hien_3?page=${page}&limit=${limit}`
-        );
-        const data = await res.json();
-
-        setSpAnHien3(data.data);
-        setTotalPages(data.totalPages);
-      } catch (err) {
-        console.error("Lỗi fetch sản phẩm Ô tô:", err);
-      }
-    };
-
-    fetchSP();
-  }, [page]);
-
-  return (
-    <div className="sphot w-[90%] mb-20 mx-auto">
-      <h2 className="relative font-bold text-red-600 uppercase my-6 text-[1.5em] border-b-2 border-gray-300">
-        <span className="bg-white pr-4">PHỤ TÙNG ÔTÔ</span>
-      </h2>
-
-      <div className="grid grid-cols-4 gap-4">
-        {sp_an_hien3.map((sp) => (
-          <ShowSP key={sp.ma_san_pham} sp={sp} />
-        ))}
-      </div>
-
-      <div className="flex justify-center gap-4 mt-6">
-        <button
-          disabled={page === 1}
-          onClick={() => setPage((p) => p - 1)}
-          className="px-4 py-2 bg-gray-200 rounded disabled:opacity-50"
-        >
-          ⬅ Trước
-        </button>
-        <span className="px-4 py-2">
-          Trang {page}/{totalPages}
-        </span>
-        <button
-          disabled={page === totalPages}
-          onClick={() => setPage((p) => p + 1)}
-          className="px-4 py-2 bg-gray-200 rounded disabled:opacity-50"
-        >
-          Sau ➡
-        </button>
-      </div>
-    </div>
-  );
-}
-
-export default function SanPhamPage() {
-  return (
-    <div>
-      <SanPhamXeMay />
-      <PhuTungOto />
-    </div>
-  );
-}
-
-
-{/* Sản phẩm nổi bật */}
-  <div className="sphot w-[90%] mb-20 mx-auto">
-    <h2 className="relative text-center font-bold text-red-600 uppercase my-6 text-[1.5em]">
-      <span className="px-4 bg-white">Sản Phẩm Bán Chạy</span>
-      <span className="absolute left-0 top-1/2 w-full border-t-2 border-gray-300 -z-10"></span>
-    </h2>
-
-    <div className="grid grid-cols-4 gap-4">
-      {sp_hot.map((sp: ISanPham) => (
-        <ShowSP key={sp.ma_san_pham} sp={sp} />
-      ))}
-    </div>
-  </div>

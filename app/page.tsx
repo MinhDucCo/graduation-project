@@ -11,9 +11,10 @@ function SanPhamBanChay() {
   useEffect(() => {
     const fetchSP = async () => {
       try {
-        const resHot = await fetch("http://localhost:3000/api/phu_tung_xe/");
+        const resHot = await fetch("http://localhost:3000/api/sanpham_hot");
         const data = await resHot.json();
-        setSpHot(data);
+        console.log("🔥 API phu_tung_xe:", data); // 👉 in ra để xem API trả về gì
+        setSpHot(data); // nếu API trả về object { data: [...] } thì đổi thành setSpHot(data.data)
       } catch (err) {
         console.error("Lỗi fetch sản phẩm bán chạy:", err);
       }
@@ -21,19 +22,18 @@ function SanPhamBanChay() {
 
     fetchSP();
   }, []);
-
   return (
     <div className="sphot w-[90%] mb-20 mx-auto">
       <h2 className="relative text-center font-bold text-red-600 uppercase my-6 text-[1.5em]">
         <span className="px-4 bg-white">Sản Phẩm Bán Chạy</span>
         <span className="absolute left-0 top-1/2 w-full border-t-2 border-gray-300 -z-10"></span>
       </h2>
-
       <div className="grid grid-cols-4 gap-4">
         {sp_hot.map((sp) => (
           <ShowSP key={sp.ma_san_pham} sp={sp} />
         ))}
       </div>
+
     </div>
   );
 }
@@ -52,8 +52,9 @@ function SanPhamXeMay() {
           `http://localhost:3000/api/san_pham/an_hien_2?page=${page}&limit=${limit}`
         );
         const data = await res.json();
-        setSpAnHien2(data.data);
-        setTotalPages(data.totalPages);
+        console.log("🔥 API an_hien_2:", data); // kiểm tra trả về
+        setSpAnHien2(data.data); // ✅ chỉ lấy mảng sản phẩm
+        setTotalPages(data.pagination.totalPages); // ✅ lấy tổng số trang
       } catch (err) {
         console.error("Lỗi fetch sản phẩm Xe Máy:", err);
       }
@@ -81,7 +82,7 @@ function SanPhamXeMay() {
           </div>
         ))}
       </div>
-      <div className="flex justify-center gap-4 mt-6">
+      <div className="flex justify-center gap-4 mt-10">
         <button
           disabled={page === 1}
           onClick={() => setPage((p) => p - 1)}
@@ -177,6 +178,7 @@ function PhuTungOto() {
         >
           Sau ➡
         </button>
+
       </div>
 
       {/* CSS animation slow motion */}

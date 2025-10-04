@@ -1,33 +1,33 @@
 "use client";
-import { ISanPham } from "../components/cautrucdata";
+import { ISanPham, IBienThe } from "../components/cautrucdata";
 import { useState, useEffect } from "react";
 
-
 export default function ShowDetailSP({ sp }: { sp: ISanPham }) {
-  // Danh sách hình: hình chính + hình phụ từ database (đường link ảnh)
+  // Lấy biến thể đầu tiên (nếu có)
+ const firstVariant = sp.bien_the_san_phams?.[0] || undefined;
+  
+
+  // Danh sách hình: hình chính + hình phụ
   const hinhPhu = [
-    sp.hinh && sp.hinh.trim() !== "" ? sp.hinh : "https://via.placeholder.com/400x300?text=Hinh+Chinh",
-    sp.hinh_phu1 && sp.hinh_phu1.trim() !== "" ? sp.hinh_phu1 : "https://placehold.co/400x300?text=Hinh+Phu+1",
-    sp.hinh_phu2 && sp.hinh_phu2.trim() !== "" ? sp.hinh_phu2 : "https://placehold.co/400x300?text=Hinh+Phu+2",
-    sp.hinh_phu3 && sp.hinh_phu3.trim() !== "" ? sp.hinh_phu3 : "https://placehold.co/400x300?text=Hinh+Phu+3",
-  ];
-  console.log("Dữ liệu sản phẩm:", sp);
-  console.log("Dữ liệu hình phụ:", { hinh_phu1: sp.hinh_phu1, hinh_phu2: sp.hinh_phu2, hinh_phu3: sp.hinh_phu3 });
-  const [hinhChinh, setHinhChinh] = useState<string>(
-    sp.hinh && sp.hinh.trim() !== "" ? sp.hinh : "https://via.placeholder.com/400x300?text=Hinh+Chinh"
-  );
+  firstVariant?.hinh || "https://via.placeholder.com/400x300?text=Hinh+Chinh",
+  firstVariant?.hinh_phu1 || "https://placehold.co/400x300?text=Hinh+Phu+1",
+  firstVariant?.hinh_phu2 || "https://placehold.co/400x300?text=Hinh+Phu+2",
+  firstVariant?.hinh_phu3 || "https://placehold.co/400x300?text=Hinh+Phu+3",
+];
+
+
+  const [hinhChinh, setHinhChinh] = useState<string>(hinhPhu[0]);
+
 
   // Kiểm tra lỗi tải ảnh
   useEffect(() => {
     const img = new Image();
     img.src = hinhChinh;
     img.onload = () => console.log("Hình chính tải thành công:", hinhChinh);
-    img.onerror = () => {
-      console.error("Lỗi tải hình chính - ERR_NAME_NOT_RESOLVED:", hinhChinh);
-      setHinhChinh("https://via.placeholder.com/400x300?text=Loi+Tai+Hinh");
-    };
+    img.onerror = () => setHinhChinh("https://via.placeholder.com/400x300?text=Loi+Tai+Hinh");
   }, [hinhChinh]);
-
+  console.log(sp.bien_the_san_phams);
+  console.log("Sản phẩm:", sp);
   return (
     <div className="max-w-6xl mx-auto my-10 p-6 bg-white shadow-xl rounded-2xl">
       <div className="flex flex-col md:flex-row gap-8">
@@ -35,10 +35,9 @@ export default function ShowDetailSP({ sp }: { sp: ISanPham }) {
         <div className="md:w-1/2">
           <img
             src={hinhChinh}
-            alt={sp.ten_san_pham || "Sản phẩm"}
+            alt={sp.ten_san_pham}
             className="w-full h-[450px] object-cover rounded-lg shadow-md"
           />
-          {/* Danh sách hình phụ */}
           <div className="flex gap-4 mt-4">
             {hinhPhu.map((hinh, index) => (
               <img
@@ -48,11 +47,7 @@ export default function ShowDetailSP({ sp }: { sp: ISanPham }) {
                 className={`w-24 h-24 object-cover rounded-md cursor-pointer border-2 transition 
                   ${hinhChinh === hinh ? "border-blue-600" : "border-gray-200"}`}
                 onClick={() => setHinhChinh(hinh)}
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  console.error(`Lỗi tải hình phụ ${index + 1} - ERR_NAME_NOT_RESOLVED:`, hinh);
-                  target.src = "https://via.placeholder.com/400x300?text=Loi+Tai+Hinh+Phu";
-                }}
+                onError={(e) => (e.currentTarget.src = "https://via.placeholder.com/400x300?text=Loi+Tai+Hinh+Phu")}
               />
             ))}
           </div>
@@ -60,43 +55,30 @@ export default function ShowDetailSP({ sp }: { sp: ISanPham }) {
 
         {/* Thông tin sản phẩm */}
         <div className="md:w-1/2 flex flex-col justify-between">
-          {/* <h1 className="text-3xl font-semibold text-gray-800">Chi Tiết Sản Phẩm</h1> */}
           <div>
-            <h3 className="text-3xl font-bold text-gray-800 mb-4">
-              {sp.ten_san_pham}
-            </h3>
+            <h3 className="text-3xl font-bold text-gray-800 mb-4">{sp.ten_san_pham}</h3>
             <p className="text-2xl text-red-600 font-semibold mb-4">
-              {Number(sp.gia).toLocaleString("vi-VN")} ₫
+              {firstVariant ? Number(firstVariant.gia).toLocaleString("vi-VN") + " ₫" : "Chưa có giá"}
+            </p>
+            <p className="text-gray-700 mb-2">
+              <b>Màu sắc:</b> {firstVariant?.mau_sac || "Chưa có"}
+            </p>
+            <p className="text-gray-700 mb-2">
+              <b>Số lượng:</b> {firstVariant?.so_luong ?? "Chưa có"}
             </p>
             <p className="text-gray-700 mb-2">
               <b>Mô tả:</b> {sp.mo_ta}
             </p>
-            <p className="text-gray-700 mb-2">
-              <b>Màu sắc:</b> {sp.mau_sac || "Chưa có"}
-            </p>
-            <p className="text-gray-700 mb-2">
-              <b>Số lượng:</b> {sp.so_luong}
-            </p>
           </div>
 
           <div className="mt-6 flex gap-4">
-            {/* Nút thêm vào giỏ hàng */}
-            <button
-              type="button"
-              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-3 rounded-xl transition duration-300 flex items-center justify-center gap-2"
-            >
+            <button className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-3 rounded-xl transition duration-300 flex items-center justify-center gap-2">
               🛒 Thêm vào giỏ hàng
             </button>
-
-            {/* Nút mua ngay */}
-            <button
-              type="button"
-              className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold px-6 py-3 rounded-xl transition duration-300 flex items-center justify-center gap-2"
-            >
-               Mua Ngay
+            <button className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold px-6 py-3 rounded-xl transition duration-300 flex items-center justify-center gap-2">
+              Mua Ngay
             </button>
           </div>
-
         </div>
       </div>
     </div>

@@ -1,4 +1,6 @@
+// database.js
 const { Sequelize, DataTypes } = require('sequelize');
+
 // Tạo đối tượng kết nối đến database
 const sequelize = new Sequelize('quan_ly_phu_tung', 'root', '', {
   host: 'localhost',
@@ -47,45 +49,57 @@ const PhuTungXeModel = sequelize.define('phu_tung_xe', {
       key: 'id'
     }
   },
-  gia: {
-    type: DataTypes.DECIMAL(10, 2),
-    allowNull: false
-  },
-  so_luong: {
-    type: DataTypes.INTEGER,
-    allowNull: false
-  },
-  mau_sac: {
-    type: DataTypes.STRING(50),
-    allowNull: true
-  },
   mo_ta: {
     type: DataTypes.TEXT,
-    allowNull: true
-  },
-  hinh: {
-    type: DataTypes.STRING(255),
     allowNull: true
   },
   an_hien: {
     type: DataTypes.INTEGER,
     defaultValue: 1
-  },
-  hinh_phu1: DataTypes.STRING,
-  hinh_phu2: DataTypes.STRING,
-  hinh_phu3: DataTypes.STRING,
+  }
 }, {
   timestamps: false,
   tableName: 'phu_tung_xe'
 });
 
-// Thiết lập quan hệ giữa hai bảng
+// Model mô tả bảng bien_the_san_pham
+const BienTheSanPhamModel = sequelize.define('bien_the_san_pham', {
+  id: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true
+  },
+  ma_san_pham: {
+    type: DataTypes.STRING(10),
+    allowNull: false,
+    references: {
+      model: 'phu_tung_xe',
+      key: 'ma_san_pham'
+    }
+  },
+  mau_sac: DataTypes.STRING(50),
+  gia: DataTypes.DECIMAL(10, 2),
+  so_luong: DataTypes.INTEGER,
+  hinh: DataTypes.STRING(255),
+  hinh_phu1: DataTypes.STRING,
+  hinh_phu2: DataTypes.STRING,
+  hinh_phu3: DataTypes.STRING
+}, {
+  timestamps: false,
+  tableName: 'bien_the_san_pham'
+});
+
+// Thiết lập quan hệ giữa các bảng
 LoaiXeModel.hasMany(PhuTungXeModel, { foreignKey: 'id_loai_xe' });
 PhuTungXeModel.belongsTo(LoaiXeModel, { foreignKey: 'id_loai_xe' });
+
+PhuTungXeModel.hasMany(BienTheSanPhamModel, { foreignKey: 'ma_san_pham' });
+BienTheSanPhamModel.belongsTo(PhuTungXeModel, { foreignKey: 'ma_san_pham' });
 
 // Xuất module để sử dụng
 module.exports = {
   sequelize,
   LoaiXeModel,
-  PhuTungXeModel
+  PhuTungXeModel,
+  BienTheSanPhamModel
 };

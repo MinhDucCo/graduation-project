@@ -1,4 +1,3 @@
-// components/ShowSP.tsx
 import React from "react";
 import Link from "next/link";
 import { ISanPham } from "./cautrucdata";
@@ -8,12 +7,15 @@ interface ShowSPProps {
 }
 
 const ShowSP: React.FC<ShowSPProps> = ({ sp }) => {
+  // Lấy biến thể đầu tiên
+  const firstVariant = sp.bien_the_san_phams?.[0];
+
   return (
     <div className="bg-white rounded-2xl shadow-md hover:shadow-xl transition p-4 flex flex-col">
       {/* Hình ảnh sản phẩm */}
       <div className="w-full h-80 overflow-hidden rounded-xl">
         <img
-           src={sp.hinh ?? "/images/no-image.png"}
+          src={firstVariant?.hinh || "/images/no-image.png"}
           alt={sp.ten_san_pham}
           className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
         />
@@ -26,14 +28,12 @@ const ShowSP: React.FC<ShowSPProps> = ({ sp }) => {
         </h3>
         <p className="text-sm text-gray-500 mt-1 line-clamp-2">{sp.mo_ta}</p>
 
-        <div className="flex items-center justify-between mt-3">
-          <span className="text-red-600 font-bold text-xl">
-  {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(sp.gia)}
-</span>
-          <span className="text-sm text-gray-400">
-            SL: {sp.so_luong}
+        {/* Giá (nếu có trong biến thể) */}
+        {firstVariant?.gia && (
+          <span className="text-red-600 font-bold text-xl mt-2">
+            {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(firstVariant.gia)}
           </span>
-        </div>
+        )}
       </div>
 
       {/* Nút xem chi tiết */}
