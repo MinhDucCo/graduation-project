@@ -1,0 +1,63 @@
+import { createSlice, PayloadAction, current } from '@reduxjs/toolkit';
+import { ISanPham, ICart } from '@/app/components/cautrucdata';
+
+// Khai báo kiểu cho state
+interface CartState {
+  listSP: ICart[];
+  order: Record<string, any>;
+}
+const initialState: CartState = {
+  listSP: [],
+  order: {}
+};
+export const cartSlice = createSlice({
+  name: 'cart',
+  initialState,
+  reducers: {
+    themSP: (state, param) => {
+      const sp = param.payload as ISanPham;
+      // state, param: PayloadAction<ISanPham> thì bạn nên cập nhật lại kiểu của PayloadAction nếu muốn an toàn:
+      const index = state.listSP.findIndex((s: ICart) => s.id === sp.id);
+
+      if (index >= 0) {
+        state.listSP[index].so_luong++;
+      } else {
+        state.listSP.push({
+          id: sp.id,
+          ten_sp: sp.ten_sp,
+          so_luong: 1,
+          gia_mua: sp.gia_km,
+          hinh: sp.hinh,
+        });
+      }
+      console.log("Đã thêm sp vào store. listSP=", current(state).listSP);
+    },
+
+    suaSL: (state, action) => {
+      const id: number = Number(action.payload[0]);
+      const so_luong: number = Number(action.payload[1]);
+      const index = state.listSP.findIndex(s => s.id === id);
+      if (index !== -1) {
+        state.listSP[index].so_luong = so_luong;
+        console.log("Đã sửa sản phẩm:", action.payload);
+      }
+    },
+
+    xoaSP: (state, action) => {
+      const id: number = Number(action.payload);
+      const index = state.listSP.findIndex(s => s.id === id);
+      if (index !== -1) {
+        state.listSP.splice(index, 1);
+        console.log("Đã xóa sản phẩm:", action.payload);
+      }
+    },
+
+    xoaGH: (state) => {
+      state.listSP = [];
+      console.log("Đã xóa toàn bộ giỏ hàng");
+    }
+  }
+
+});
+export const { themSP, suaSL, xoaSP, xoaGH } = cartSlice.actions;
+export default cartSlice.reducer;

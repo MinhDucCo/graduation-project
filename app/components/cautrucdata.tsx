@@ -28,3 +28,14 @@ export interface IBienThe {
   hinh_phu2: string | null;
   hinh_phu3: string | null;
 }
+export interface ICart {
+    id : number 
+    ten_san_pham : string;
+    gia : number;
+    id_user : number;
+    id_san_pham : number;
+    so_luong : number;
+    ngay_them : string;
+    hinh : string;
+    mau_sac : string;
+}

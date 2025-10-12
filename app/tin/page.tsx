@@ -5,15 +5,15 @@ import { TinTucModel } from "@/database";
 export default async function ListSP() {
   const tin_arr = await TinTucModel.findAll({
     where: { an_hien: 1 },
-    order: [['ngay', 'DESC'], ['luot_xem', 'ASC']],
+    order: [['ngay', 'DESC'], ['luot_xem', 'Desc']],
     offset: 0,
-    limit: 10,
+    limit: 8,
   });
 
   return (
     <div className="max-w-6xl mx-auto my-6 px-4">
       <h2 className="text-[1.4em] bg-sky-500 text-white p-3 uppercase rounded-lg shadow-md">
-        📰 Danh sách bài viết
+        📰 DANH SÁCH TIN TỨC
       </h2>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">

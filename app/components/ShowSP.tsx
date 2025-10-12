@@ -26,7 +26,10 @@ const ShowSP: React.FC<ShowSPProps> = ({ sp }) => {
         <h3 className="text-lg font-semibold text-gray-800 truncate">
           {sp.ten_san_pham}
         </h3>
-        <p className="text-sm text-gray-500 mt-1 line-clamp-2">{sp.mo_ta}</p>
+        <p className="text-sm text-gray-500 mt-1">
+  {sp.mo_ta.split(" ").slice(0, 15).join(" ") + (sp.mo_ta.split(" ").length > 15 ? "..." : "")}
+</p>
+
 
         {/* Giá (nếu có trong biến thể) */}
         {firstVariant?.gia && (

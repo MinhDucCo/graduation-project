@@ -23,16 +23,16 @@ export default async function ChiTiet1Tin({ params }: { params: { id: string } }
           className="w-full max-h-[400px] object-cover rounded my-4 shadow"
         />
       )}
-      <h3 className="font-bold text-[1.2em] leading-10 text-gray-800">{tin.mo_ta}</h3>
+      <h3 className="text-[1.2em] leading-10 text-gray-800">{tin.mo_ta}</h3>
       <hr className="my-3 border-gray-300" />
       <p className="italic text-right my-4 text-sm text-gray-600">
         Cập nhật: {new Date(tin.ngay).toLocaleDateString("vi")}.<br />
         Lượt xem: {tin.luot_xem}
       </p>
       <div
-        className="prose prose-lg max-w-none"
-        dangerouslySetInnerHTML={{ __html: tin.noi_dung }} 
-      />
+  className="prose max-w-none text-lg leading-relaxed text-gray-800"
+  dangerouslySetInnerHTML={{ __html: tin.noi_dung }}
+/>
     </div>
   );
 }

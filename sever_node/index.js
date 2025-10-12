@@ -12,8 +12,10 @@ app.use(helmet.contentSecurityPolicy({
     imgSrc: ["'self'", "data:", "https://example.com"], // Cho phép tải ảnh từ URL
   },
 }));
+
+
 app.use(express.static('public')); // Phục vụ file tĩnh từ thư mục public
-const { sequelize, PhuTungXeModel, LoaiXeModel, BienTheSanPhamModel } = require("./database");
+const { sequelize, PhuTungXeModel, LoaiXeModel, BienTheSanPhamModel,GioHangModel } = require("./database");
 
 const { Op } = require("sequelize");
 app.get("/", (req, res) => {
@@ -335,6 +337,60 @@ app.get('/api/timkiem/:tu_khoa/count', async (req, res) => {
     res.status(500).json({ error: 'Không thể đếm sản phẩm' });
   }
 });
+
+
+// 🛒 API thêm sản phẩm vào giỏ hàng
+app.post("/api/cart/add", async (req, res) => {
+  try {
+    const { ten_san_pham, gia, id_user, id_san_pham, so_luong, hinh, mau_sac } = req.body;
+
+    if (!ten_san_pham || !gia || !id_user || !id_san_pham || !so_luong) {
+      return res.status(400).json({ message: "Thiếu dữ liệu bắt buộc!" });
+    }
+
+    const sql = `
+      INSERT INTO gio_hang (ten_san_pham, gia, id_user, id_san_pham, so_luong, ngay_them, hinh, mau_sac)
+      VALUES (?, ?, ?, ?, ?, NOW(), ?, ?)
+    `;
+    await conn.execute(sql, [ten_san_pham, gia, id_user, id_san_pham, so_luong, hinh, mau_sac]);
+
+    res.json({ message: "Đã thêm vào giỏ hàng thành công!" });
+  } catch (err) {
+    console.error("Lỗi thêm giỏ hàng:", err);
+    res.status(500).json({ message: "Không thể thêm giỏ hàng!" });
+  }
+});
+
+
+
+
+// 🛍️ Lấy danh sách giỏ hàng
+app.get("/api/cart", async (req, res) => {
+  try {
+    const carts = await GioHangModel.findAll();
+    res.json(carts);
+  } catch (err) {
+    console.error("Lỗi lấy giỏ hàng:", err.message);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 🗑️ Xóa sản phẩm khỏi giỏ
+app.delete("/api/cart/:id", async (req, res) => {
+  try {
+    const id = req.params.id;
+    await GioHangModel.destroy({ where: { id } });
+    res.json({ message: "Đã xóa sản phẩm khỏi giỏ hàng" });
+  } catch (err) {
+    console.error("Lỗi xóa giỏ hàng:", err.message);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+
+
+
+
 
 
 app.listen(port, () => {
