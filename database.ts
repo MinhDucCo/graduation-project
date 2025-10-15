@@ -30,3 +30,33 @@ export const TinTucModel = sequelize.define<iTinTuc>(
   },
   { timestamps: false, tableName: "tin_tuc" }
 );
+
+
+// ---- Model Liên hệ ----
+interface iLienHe extends Model {
+  id: number;
+  ho_ten: string;
+  email: string;
+  so_dien_thoai: string;
+  noi_dung: string;
+  ngay_gui: Date;
+  trang_thai: string;
+}
+
+export const LienHeModel = sequelize.define<iLienHe>(
+  "lien_he",
+  {
+    id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+    ho_ten: { type: DataTypes.STRING(100), allowNull: false },
+    email: { type: DataTypes.STRING(100), allowNull: false },
+    so_dien_thoai: { type: DataTypes.STRING(20), allowNull: false },
+    noi_dung: { type: DataTypes.TEXT, allowNull: false },
+    ngay_gui: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
+    trang_thai: {
+      type: DataTypes.STRING(50),
+      allowNull: false,
+      defaultValue: "Chưa phản hồi",
+    },
+  },
+  { timestamps: false, tableName: "lien_he" }
+);

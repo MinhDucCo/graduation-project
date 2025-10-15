@@ -39,3 +39,18 @@ export interface ICart {
     hinh : string;
     mau_sac : string;
 }
+export interface IUser {
+  id: number;
+  email: string;
+  mat_khau: string;
+  ho_ten?: string;
+  dia_chi?: string;
+  dien_thoai?: string;
+  vai_tro?: string;
+  khoa?: boolean;
+  hinh?: string;
+  email_verified_at?: string;
+  remember_token?: string;
+  created_at?: string;
+}
+

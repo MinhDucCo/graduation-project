@@ -53,7 +53,7 @@ export default function ShowDetailSP({ sp }: { sp: ISanPham }) {
         hinh: selectedVariant.hinh,
         mau_sac: selectedVariant.mau_sac,
       };
-    console.log("🔍 selectedVariant:", selectedVariant);
+      console.log("🔍 selectedVariant:", selectedVariant);
       console.log("📦 Dữ liệu thêm giỏ hàng:", data);
       
       const res = await fetch("http://localhost:3000/api/cart/add", {
@@ -65,12 +65,12 @@ export default function ShowDetailSP({ sp }: { sp: ISanPham }) {
       const result = await res.json();
 
 
-      if (res.ok) {
-        alert("✅ Đã thêm sản phẩm vào giỏ hàng!");
-        router.push("/AddToCart");
-      } else {
-        alert("❌ Thêm thất bại: " + result.message);
-      }
+      // if (res.ok) {
+      //   alert("✅ Đã thêm sản phẩm vào giỏ hàng!");
+      //   router.push("/AddToCart");
+      // } else {
+      //   alert("❌ Thêm thất bại: " + result.message);
+      // }
     } catch (error) {
       console.error("🚨 Lỗi khi thêm giỏ hàng:", error);
       alert("Không thể thêm vào giỏ hàng!");

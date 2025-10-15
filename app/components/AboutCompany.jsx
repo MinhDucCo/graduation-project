@@ -35,10 +35,10 @@ const AboutCompany = () => {
                         Về chúng tôi
                     </h3>
                     <h2 className="text-3xl md:text-1xl font-bold text-gray-900 mb-6">
-                        Công ty phụ tùng xe máy DEMO Việt Nam
+                        Công ty phụ tùng xe máy GearX Việt Nam
                     </h2>
                     <p className="text-gray-600 leading-relaxed mb-4">
-                        Công ty DEMO chuyên cung cấp và phân phối các loại phụ tùng xe máy
+                        Công ty GearX chuyên cung cấp và phân phối các loại phụ tùng xe máy
                         chính hãng với hệ thống quản lý chất lượng theo tiêu chuẩn ISO 9001
                         &amp; 14001. Đội ngũ kỹ thuật có kinh nghiệm nhiều năm trong ngành
                         giúp chúng tôi tự tin đáp ứng mọi yêu cầu khắt khe về chất lượng,
@@ -50,7 +50,7 @@ const AboutCompany = () => {
                         đường.
                     </p>
                     <button className="mt-4 bg-orange-600 text-white px-6 py-3 rounded-full font-semibold shadow hover:bg-orange-700 transition">
-                        Xem chi tiết →
+                        <a href="/gioi-thieu">Xem thêm</a>
                     </button>
                 </div>
             </div>

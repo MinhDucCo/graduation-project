@@ -13,9 +13,8 @@ app.use(helmet.contentSecurityPolicy({
   },
 }));
 
-
 app.use(express.static('public')); // Phục vụ file tĩnh từ thư mục public
-const { sequelize, PhuTungXeModel, LoaiXeModel, BienTheSanPhamModel,GioHangModel } = require("./database");
+const { sequelize, PhuTungXeModel, LoaiXeModel, BienTheSanPhamModel, GioHangModel,User,LienHeModel } = require("./database");
 
 const { Op } = require("sequelize");
 app.get("/", (req, res) => {
@@ -168,31 +167,6 @@ app.get("/api/san_pham/an_hien_2", async (req, res) => {
     res.status(500).json({ message: "Lỗi server", error: error.message });
   }
 });
-
-
-
-
-
-// Lấy tất cả sản phẩm có an_hien = 3 là Ô TÔ
-// app.get("/api/san_pham/an_hien_3", async (req, res) => {
-//   try {
-//     const sp_arr = await PhuTungXeModel.findAll({
-//       where: { an_hien: 3 },
-//       order: [["gia", "ASC"]], // sắp xếp theo giá tăng dần
-//       include: [
-//         {
-//           model: LoaiXeModel,
-//           attributes: ["ten_loai"], // lấy tên loại xe
-//         },
-//       ],
-//     });
-
-//     res.json(sp_arr);
-//   } catch (error) {
-//     console.error("Lỗi khi lấy sản phẩm:", error);
-//     res.status(500).json({ message: "Lỗi server", error: error.message });
-//   }
-// });
 
 // Lấy tất cả sản phẩm có an_hien = 3 (Ô tô) kèm phân trang
 app.get("/api/san_pham/an_hien_3", async (req, res) => {
@@ -348,46 +322,125 @@ app.post("/api/cart/add", async (req, res) => {
       return res.status(400).json({ message: "Thiếu dữ liệu bắt buộc!" });
     }
 
-    const sql = `
-      INSERT INTO gio_hang (ten_san_pham, gia, id_user, id_san_pham, so_luong, ngay_them, hinh, mau_sac)
-      VALUES (?, ?, ?, ?, ?, NOW(), ?, ?)
-    `;
-    await conn.execute(sql, [ten_san_pham, gia, id_user, id_san_pham, so_luong, hinh, mau_sac]);
+    const newCartItem = await GioHangModel.create({
+      ten_san_pham,
+      gia,
+      id_user,
+      id_san_pham,
+      so_luong,
+      hinh,
+      mau_sac,
+    });
 
-    res.json({ message: "Đã thêm vào giỏ hàng thành công!" });
+    res.status(201).json({
+      message: "Đã thêm vào giỏ hàng thành công!",
+      data: newCartItem,
+    });
   } catch (err) {
-    console.error("Lỗi thêm giỏ hàng:", err);
-    res.status(500).json({ message: "Không thể thêm giỏ hàng!" });
+    console.error("❌ Lỗi khi thêm giỏ hàng:", err);
+    res.status(500).json({ message: "Không thể thêm giỏ hàng!", error: err.message });
   }
 });
 
 
-
-
-// 🛍️ Lấy danh sách giỏ hàng
+// Lấy toàn bộ giỏ hàng
 app.get("/api/cart", async (req, res) => {
   try {
-    const carts = await GioHangModel.findAll();
-    res.json(carts);
+    const cart = await GioHangModel.findAll(); // sẽ tìm đúng bảng 'gio_hang'
+    res.json(cart);
   } catch (err) {
-    console.error("Lỗi lấy giỏ hàng:", err.message);
-    res.status(500).json({ message: err.message });
+    console.error("🚨 Lỗi khi lấy giỏ hàng:", err);
+    res.status(500).json({ message: "Không thể lấy giỏ hàng", error: err.message });
   }
 });
+
+
 
 // 🗑️ Xóa sản phẩm khỏi giỏ
-app.delete("/api/cart/:id", async (req, res) => {
+app.delete("/api/cart/delete/:id", async (req, res) => {
   try {
-    const id = req.params.id;
-    await GioHangModel.destroy({ where: { id } });
-    res.json({ message: "Đã xóa sản phẩm khỏi giỏ hàng" });
+    await GioHangModel.destroy({ where: { id: req.params.id } });
+    res.json({ message: "Đã xóa sản phẩm" });
   } catch (err) {
-    console.error("Lỗi xóa giỏ hàng:", err.message);
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: "Lỗi xóa", error: err.message });
+  }
+});
+// Cập nhật số lượng sản phẩm trong giỏ
+app.put("/api/cart/update/:id", async (req, res) => {
+  try {
+    const { so_luong } = req.body;
+    await GioHangModel.update({ so_luong }, { where: { id: req.params.id } });
+    res.json({ message: "Cập nhật số lượng thành công" });
+  } catch (err) {
+    res.status(500).json({ message: "Lỗi cập nhật", error: err.message });
   }
 });
 
+// API đăng nhập
+app.post("/api/auth/login", async (req, res) => {
+  const { email, mat_khau } = req.body;
 
+  if (!email || !mat_khau) {
+    return res.status(400).json({ message: "Vui lòng nhập email và mật khẩu!" });
+  }
+
+  try {
+    const [users] = await sequelize.query(
+  "SELECT * FROM users WHERE email = ?",
+  { replacements: [email] }
+);
+
+if (!users || users.length === 0) {
+  return res.status(400).json({ message: "Email không tồn tại!" });
+}
+
+const user = users[0];
+
+    // Kiểm tra mật khẩu
+   const match = await bcrypt.compare(mat_khau, user.mat_khau);
+    if (!match) return res.status(400).json({ message: "Mật khẩu không đúng!" });
+
+    res.json({
+      message: "Đăng nhập thành công!",
+      user: {
+        id: user.id,
+        email: user.email,
+        ho_ten: user.ho_ten,
+        vai_tro: user.vai_tro,
+      },
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Lỗi hệ thống!" });
+  }
+});
+
+// 📩 API: Gửi thông tin liên hệ
+app.post("/api/lien-he", async (req, res) => {
+  const { ho_ten, email, so_dien_thoai, noi_dung } = req.body;
+
+  // ✅ Kiểm tra dữ liệu đầu vào
+  if (!ho_ten || !email || !so_dien_thoai || !noi_dung) {
+    return res.status(400).json({ message: "Vui lòng nhập đầy đủ thông tin!" });
+  }
+
+  try {
+    // ✅ Lưu vào database
+    await LienHeModel.create({
+      ho_ten,
+      email,
+      so_dien_thoai,
+      noi_dung,
+      trang_thai: "chưa xử lý",
+      ngay_gui: new Date(),
+    });
+
+    res.status(200).json({ message: "Gửi liên hệ thành công!" });
+  } catch (error) {
+    console.error("❌ Lỗi khi lưu liên hệ:", error);
+    res.status(500).json({ message: "Lỗi máy chủ!" });
+  }
+});
 
 
 

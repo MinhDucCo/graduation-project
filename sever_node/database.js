@@ -1,6 +1,5 @@
 // database.js
 const { Sequelize, DataTypes } = require('sequelize');
-
 // Tạo đối tượng kết nối đến database
 const sequelize = new Sequelize('quan_ly_phu_tung', 'root', '', {
   host: 'localhost',
@@ -100,7 +99,48 @@ const GioHangModel = sequelize.define("gio_hang", {
   hinh: { type: DataTypes.STRING, allowNull: true },
   mau_sac: { type: DataTypes.STRING, allowNull: true },
   ngay_them: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
+}, {
+  freezeTableName: true, // ✅ giữ nguyên tên bảng 'gio_hang'
+  timestamps: false       // bỏ cột createdAt/updatedAt nếu không cần
 });
+// Model User
+const User = sequelize.define("users", {
+  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  email: { type: DataTypes.STRING, allowNull: false, unique: true },
+  mat_khau: { type: DataTypes.STRING, allowNull: false },
+  ho_ten: { type: DataTypes.STRING, allowNull: true },
+  dia_chi: { type: DataTypes.STRING, allowNull: true },
+  dien_thoai: { type: DataTypes.STRING, allowNull: true },
+  vai_tro: { type: DataTypes.STRING, allowNull: true },
+  khoa: { type: DataTypes.BOOLEAN, defaultValue: false },
+  hinh: { type: DataTypes.STRING, allowNull: true },
+  email_verified_at: { type: DataTypes.DATE, allowNull: true },
+  remember_token: { type: DataTypes.STRING, allowNull: true },
+}, {
+  tableName: 'users',
+  timestamps: true
+});
+
+
+// 💬 Model mô tả bảng lien_he
+const LienHeModel = sequelize.define("lien_he", {
+  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+
+  ho_ten: { type: DataTypes.STRING, allowNull: false },
+  email: { type: DataTypes.STRING, allowNull: false },
+  noi_dung: { type: DataTypes.TEXT, allowNull: false },
+  so_dien_thoai: { type: DataTypes.STRING, allowNull: false },
+  trang_thai: {
+    type: DataTypes.ENUM("chưa xử lý", "đã xử lý"),
+    defaultValue: "chưa xử lý",
+  },
+
+  ngay_gui: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
+}, {
+  freezeTableName: true, // ✅ giữ nguyên tên bảng 'lien_he'
+  timestamps: false      // ❌ không thêm createdAt / updatedAt
+});
+
 
 // Thiết lập quan hệ giữa các bảng
 LoaiXeModel.hasMany(PhuTungXeModel, { foreignKey: 'id_loai_xe' });
@@ -114,5 +154,7 @@ module.exports = {
   LoaiXeModel,
   PhuTungXeModel,
   BienTheSanPhamModel,
-  GioHangModel
+  GioHangModel,
+  User,
+  LienHeModel
 };
