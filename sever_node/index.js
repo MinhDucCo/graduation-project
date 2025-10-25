@@ -1,29 +1,49 @@
+/**
+ * @typedef {import('./database.js')} DB
+ */
+/** @type {DB} */
 const express = require("express");
 const helmet = require("helmet");
+const bcrypt = require("bcrypt");
+const cors = require("cors");
+const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
+const nodemailer = require("nodemailer");
+const { Op } = require("sequelize");
+const { sendVerificationEmail } = require("./utils/sendEmail.js");
+const {
+  sequelize,
+  Users,
+  PhuTungXeModel,
+  LoaiXeModel,
+  BienTheSanPhamModel,
+  GioHangModel,
+  LienHeModel,
+} = require("./database.js");
+
 const app = express();
 const port = 3000;
 app.use(express.json());
-const cors = require("cors");
 app.use(cors());
-app.use(helmet.contentSecurityPolicy({
-  directives: {
-    defaultSrc: ["'self'"],
-    connectSrc: ["'self'", "http://localhost:3000"],
-    imgSrc: ["'self'", "data:", "https://example.com"], // Cho phép tải ảnh từ URL
-  },
-}));
-
-app.use(express.static('public')); // Phục vụ file tĩnh từ thư mục public
-const { sequelize, PhuTungXeModel, LoaiXeModel, BienTheSanPhamModel, GioHangModel,User,LienHeModel } = require("./database");
-
-const { Op } = require("sequelize");
+app.use(
+  helmet.contentSecurityPolicy({
+    directives: {
+      defaultSrc: ["'self'"],
+      connectSrc: ["'self'", "http://localhost:3000"],
+      imgSrc: ["'self'", "data:", "https://example.com"],
+    },
+  })
+);
+app.use(express.static("public"));
 app.get("/", (req, res) => {
   res.send(`
     <h1>API Phụ tùng xe</h1>
     <p>Truy cập các API:</p>
     <ul>
+
       <li><a href="/api/loai_xe/1">/api/loai_xe/1</a> - Lấy thông tin loại xe</li>
       <li><a href="/api/phu_tung_xe">/api/phu_tung_xe</a> - Lấy danh sách phụ tùng xe</li>
+      <li><a href="/api/auth/login">/api/auth/login</a> - Đăng nhập</li>
       <li><a href="/api/sanpham/1">/api/sanpham/1</a> - Xem chi tiết sản phẩm</li>
     </ul>
   `);
@@ -313,6 +333,22 @@ app.get('/api/timkiem/:tu_khoa/count', async (req, res) => {
 });
 
 
+
+// 🛒 Lấy giỏ hàng theo ID người dùng
+app.get("/api/cart/:id_user", async (req, res) => {
+  try {
+    const id_user = req.params.id_user;
+    console.log("🧠 Đang lấy giỏ hàng cho user:", id_user);
+
+    const cart = await GioHangModel.findAll({ where: { id_user } });
+    console.log("✅ Kết quả:", cart.length, "sản phẩm");
+    res.json(cart);
+  } catch (err) {
+    console.error("🚨 Lỗi khi lấy giỏ hàng:", err);
+    res.status(500).json({ message: "Không thể lấy giỏ hàng", error: err.message });
+  }
+});
+
 // 🛒 API thêm sản phẩm vào giỏ hàng
 app.post("/api/cart/add", async (req, res) => {
   try {
@@ -377,6 +413,40 @@ app.put("/api/cart/update/:id", async (req, res) => {
 });
 
 // API đăng nhập
+// app.post("/api/auth/login", async (req, res) => {
+//   const { email, mat_khau } = req.body;
+
+//   if (!email || !mat_khau) {
+//     return res.status(400).json({ message: "Vui lòng nhập email và mật khẩu!" });
+//   }
+
+//   try {
+//     const user = await Users.findOne({ where: { email } });
+//     if (!user) return res.status(400).json({ message: "Email không tồn tại!" });
+
+//     const match = await bcrypt.compare(mat_khau, user.mat_khau);
+//     if (!match) return res.status(400).json({ message: "Sai mật khẩu!" });
+
+//     const token = jwt.sign({ id: user.id, email: user.email, vai_tro: user.vai_tro }, "MY_SECRET_KEY", { expiresIn: "1d" });
+
+//     const userData = {
+//       id: user.id,
+//       email: user.email,
+//       ho_ten: user.ho_ten,
+//       vai_tro: user.vai_tro,
+//       token,
+//     };
+
+//     res.json({
+//       message: "Đăng nhập thành công!",
+//       user: userData,
+//     });
+//   } catch (err) {
+//     console.error("Lỗi đăng nhập:", err);
+//     res.status(500).json({ message: "Lỗi server!" });
+//   }
+// });
+
 app.post("/api/auth/login", async (req, res) => {
   const { email, mat_khau } = req.body;
 
@@ -385,33 +455,49 @@ app.post("/api/auth/login", async (req, res) => {
   }
 
   try {
-    const [users] = await sequelize.query(
-  "SELECT * FROM users WHERE email = ?",
-  { replacements: [email] }
-);
+    const user = await Users.findOne({ where: { email } });
 
-if (!users || users.length === 0) {
-  return res.status(400).json({ message: "Email không tồn tại!" });
-}
+    if (!user) {
+      return res.status(400).json({ message: "Email không tồn tại!" });
+    }
 
-const user = users[0];
+    let match = false;
 
-    // Kiểm tra mật khẩu
-   const match = await bcrypt.compare(mat_khau, user.mat_khau);
-    if (!match) return res.status(400).json({ message: "Mật khẩu không đúng!" });
+    // 🧩 Nếu mật khẩu trong DB bắt đầu bằng "$2b$", nghĩa là đã được bcrypt hash
+    if (user.mat_khau.startsWith("$2b$")) {
+      match = await bcrypt.compare(mat_khau, user.mat_khau);
+    } else {
+      // 🧩 Ngược lại, so sánh trực tiếp (dành cho mật khẩu lưu thẳng, không mã hóa)
+      match = mat_khau === user.mat_khau;
+    }
 
-    res.json({
+    if (!match) {
+      return res.status(400).json({ message: "Sai mật khẩu!" });
+    }
+
+    // ✅ Tạo token
+    const token = jwt.sign(
+      { id: user.id, email: user.email, vai_tro: user.vai_tro },
+      "MY_SECRET_KEY",
+      { expiresIn: "1d" }
+    );
+
+    // ✅ Trả thông tin user về client
+    const userData = {
+      id: user.id,
+      email: user.email,
+      ho_ten: user.ho_ten,
+      vai_tro: user.vai_tro,
+      token,
+    };
+
+    return res.json({
       message: "Đăng nhập thành công!",
-      user: {
-        id: user.id,
-        email: user.email,
-        ho_ten: user.ho_ten,
-        vai_tro: user.vai_tro,
-      },
+      user: userData,
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Lỗi hệ thống!" });
+    console.error("🔥 Lỗi đăng nhập:", err);
+    return res.status(500).json({ message: "Lỗi server!" });
   }
 });
 
@@ -439,6 +525,143 @@ app.post("/api/lien-he", async (req, res) => {
   } catch (error) {
     console.error("❌ Lỗi khi lưu liên hệ:", error);
     res.status(500).json({ message: "Lỗi máy chủ!" });
+  }
+});
+// api đăng ký tài khoản
+app.post("/api/auth/register", async (req, res) => {
+  const { email, mat_khau, ho_ten, dien_thoai } = req.body;
+
+  if (!email || !mat_khau) {
+    return res.status(400).json({ message: "Thiếu email hoặc mật khẩu!" });
+  }
+
+  try {
+    const existing = await Users.findOne({ where: { email } });
+    if (existing)
+      return res.status(400).json({ message: "Email đã tồn tại!" });
+
+    const hash = await bcrypt.hash(mat_khau, 10);
+    const token = jwt.sign({ email }, "MY_SECRET_KEY", { expiresIn: "1d" });
+
+    await Users.create({
+      email,
+      mat_khau: hash,
+      ho_ten,
+       dien_thoai,
+      remember_token: token,
+
+    });
+
+    await sendVerificationEmail(email, token);
+
+    res.json({ message: "Đăng ký thành công! Vui lòng kiểm tra email để xác nhận." });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Lỗi server!" });
+  }
+});
+
+// API xác nhận email
+app.get("/api/auth/verify", async (req, res) => {
+  const { token } = req.query;
+  try {
+    const decoded = jwt.verify(token, "MY_SECRET_KEY");
+    const user = await User.findOne({ where: { email: decoded.email } });
+    if (!user) return res.status(400).json({ message: "Người dùng không tồn tại!" });
+
+    user.email_verified_at = new Date();
+    await user.save();
+
+    res.send("<h3>Xác nhận thành công! Bạn có thể đăng nhập.</h3>");
+  } catch (err) {
+    res.status(400).send("<h3>Liên kết không hợp lệ hoặc đã hết hạn!</h3>");
+  }
+});
+
+// Gửi OTP quên mật khẩu
+app.post("/api/auth/forgot-password", async (req, res) => {
+  const { email } = req.body;
+
+  try {
+    // 🔍 Kiểm tra email tồn tại
+    const user = await Users.findOne({ where: { email } });
+    if (!user) return res.status(400).json({ message: "Email không tồn tại!" });
+
+    // 🔢 Tạo mã OTP ngẫu nhiên 6 số
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // 💾 Lưu OTP và thời hạn (5 phút)
+    user.otpCode = otp;
+    user.otpExpires = new Date(Date.now() + 5 * 60 * 1000); // 5 phút
+    await user.save();
+
+    // ✉️ Gửi email OTP
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: "sxodia247@gmail.com", // Gmail thật
+        pass: "kjrr hasw pafk pzjr", // App password
+      },
+    });
+
+    const mailOptions = {
+      from: "sxodia247@gmail.com",
+      to: email,
+      subject: "Mã xác nhận đổi mật khẩu",
+      html: `
+        <h3>Mã OTP khôi phục mật khẩu của bạn:</h3>
+        <p style="font-size:20px;font-weight:bold;color:#007bff;">${otp}</p>
+        <p>Mã có hiệu lực trong <b>5 phút</b>. Không chia sẻ mã này cho bất kỳ ai.</p>
+      `,
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    console.log(`✅ Đã gửi OTP ${otp} đến ${email}`);
+    res.json({ message: "Đã gửi mã xác nhận qua email!" });
+  } catch (err) {
+    console.error("Lỗi quên mật khẩu:", err);
+    res.status(500).json({ message: "Lỗi server!" });
+  }
+});
+
+// ✅ API: Đặt lại mật khẩu
+app.post("/api/auth/reset-password", async (req, res) => {
+  const { email, otp, newPassword } = req.body;
+
+  if (!email || !otp || !newPassword) {
+    return res.status(400).json({ message: "Thiếu thông tin!" });
+  }
+
+  try {
+    // Tìm user có email và OTP hợp lệ
+    const user = await Users.findOne({
+      where: {
+        email,
+        otpCode: otp,
+        otpExpires: { [Op.gt]: new Date() }, // OTP còn hạn
+      },
+    });
+
+    if (!user) {
+      return res
+        .status(400)
+        .json({ message: "Mã OTP không đúng hoặc đã hết hạn!" });
+    }
+
+    // Mã hóa mật khẩu mới
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Cập nhật mật khẩu và xóa OTP
+    user.mat_khau = hashedPassword;
+    user.otpCode = null;
+    user.otpExpires = null;
+    await user.save();
+
+    res.json({ message: "Đổi mật khẩu thành công! Vui lòng đăng nhập lại." });
+  } catch (err) {
+    console.error("Lỗi đổi mật khẩu:", err);
+    res.status(500).json({ message: "Lỗi server!" });
   }
 });
 

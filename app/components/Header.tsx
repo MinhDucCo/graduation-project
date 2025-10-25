@@ -40,8 +40,8 @@ export default function Header() {
           <Image
             src="/images/logo gearX.png" // đường dẫn public
             alt="Phụ Tùng Xe Máy"
-            width={150} // chiều rộng cố định
-            height={64} // chiều cao cố định
+            width={190} // chiều rộng cố định
+            height={130} // chiều cao cố định
             className="object-contain"
           />
         </div>
@@ -71,7 +71,7 @@ export default function Header() {
           </button>
           <button
             className="bg-red-600 text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-red-700 transition"
-            onClick={() => router.push("/register")}
+            onClick={() => router.push("/Register")}
           >
             Đăng ký
           </button>

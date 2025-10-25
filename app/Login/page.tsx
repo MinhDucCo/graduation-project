@@ -1,7 +1,6 @@
 'use client';
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
@@ -19,21 +18,42 @@ export default function LoginPage() {
         body: JSON.stringify({ email, mat_khau: matKhau }),
       });
 
-      const data = await res.json();
+      console.log('[Login] response status', res.status, res.statusText);
+
+      const text = await res.text();
+      let data: any = {};
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        data = { message: text };
+      }
+
+
+      console.log('[Login] response body', data);
 
       if (res.ok) {
-        alert('✅ ' + data.message);
-        router.push('/admin'); // redirect sau khi login
+        alert('✅ ' + (data.message || 'Đăng nhập thành công'));
+
+        // 🔹 Lưu thông tin user vào localStorage để sử dụng sau này
+        localStorage.setItem('user', JSON.stringify(data.user));
+
+        // 🔹 Kiểm tra vai trò: 1 = admin, còn lại là user
+        const vaiTro = Number(data.user?.vai_tro);
+        if (vaiTro === 1) {
+          router.push('/Admin');
+        } else {
+          router.push('/User');
+        }
       } else {
-        alert('❌ ' + data.message);
+        alert('❌ ' + (data.message || `Lỗi (${res.status})`));
       }
     } catch (err) {
-      console.error(err);
-      alert('❌ Lỗi hệ thống!');
+      console.error('[Login] fetch error', err);
+      alert('❌ Lỗi hệ thống! Kiểm tra console và backend logs.');
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   return (
     <div className="flex justify-center items-center min-h-screen bg-gray-100 px-4">
@@ -74,11 +94,17 @@ export default function LoginPage() {
           Chưa có tài khoản?{' '}
           <span
             className="text-blue-600 hover:underline cursor-pointer"
-            onClick={() => router.push('/register')}
+            onClick={() => router.push('/Register')}
           >
             Đăng ký ngay
           </span>
         </p>
+        <span
+            className="text-blue-600 hover:underline cursor-pointer"
+            onClick={() => router.push('/forgot-password')}
+          >
+            Quên mật khẩu?
+          </span>
       </div>
     </div>
   );

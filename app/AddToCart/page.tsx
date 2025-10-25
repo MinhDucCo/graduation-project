@@ -79,7 +79,7 @@ export default function AddToCart() {
           <img
             src={item.hinh}
             alt={item.ten_san_pham}
-            className="w-20 h-20 object-cover rounded-lg"
+            className="w-21 h-21 object-cover rounded-lg"
           />
           <div>
             <h3 className="font-semibold">{item.ten_san_pham}</h3>

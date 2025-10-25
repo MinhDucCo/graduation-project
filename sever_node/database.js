@@ -104,28 +104,28 @@ const GioHangModel = sequelize.define("gio_hang", {
   timestamps: false       // bỏ cột createdAt/updatedAt nếu không cần
 });
 // Model User
-const User = sequelize.define("users", {
-  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
-  email: { type: DataTypes.STRING, allowNull: false, unique: true },
-  mat_khau: { type: DataTypes.STRING, allowNull: false },
-  ho_ten: { type: DataTypes.STRING, allowNull: true },
-  dia_chi: { type: DataTypes.STRING, allowNull: true },
-  dien_thoai: { type: DataTypes.STRING, allowNull: true },
-  vai_tro: { type: DataTypes.STRING, allowNull: true },
-  khoa: { type: DataTypes.BOOLEAN, defaultValue: false },
-  hinh: { type: DataTypes.STRING, allowNull: true },
-  email_verified_at: { type: DataTypes.DATE, allowNull: true },
-  remember_token: { type: DataTypes.STRING, allowNull: true },
-}, {
-  tableName: 'users',
-  timestamps: true
-});
+// const UserModel = sequelize.define("users", {
+//   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+//   email: { type: DataTypes.STRING, allowNull: false, unique: true },
+//   mat_khau: { type: DataTypes.STRING, allowNull: false },
+//   ho_ten: { type: DataTypes.STRING, allowNull: true },
+//   dia_chi: { type: DataTypes.STRING, allowNull: true },
+//   dien_thoai: { type: DataTypes.STRING, allowNull: true },
+//   vai_tro: { type: DataTypes.STRING, allowNull: true },
+//   khoa: { type: DataTypes.BOOLEAN, defaultValue: false },
+//   hinh: { type: DataTypes.STRING, allowNull: true },
+//   email_verified_at: { type: DataTypes.DATE, allowNull: true },
+//   remember_token: { type: DataTypes.STRING, allowNull: true },
+// }, {
+//   tableName: 'users',
+//   timestamps: true
+// });
+
 
 
 // 💬 Model mô tả bảng lien_he
 const LienHeModel = sequelize.define("lien_he", {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
-
   ho_ten: { type: DataTypes.STRING, allowNull: false },
   email: { type: DataTypes.STRING, allowNull: false },
   noi_dung: { type: DataTypes.TEXT, allowNull: false },
@@ -140,7 +140,31 @@ const LienHeModel = sequelize.define("lien_he", {
   freezeTableName: true, // ✅ giữ nguyên tên bảng 'lien_he'
   timestamps: false      // ❌ không thêm createdAt / updatedAt
 });
-
+const Users = sequelize.define("users", {
+  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  email: { type: DataTypes.STRING, allowNull: false, unique: true },
+  mat_khau: { type: DataTypes.STRING, allowNull: false },
+  ho_ten: { type: DataTypes.STRING },
+  dia_chi: { type: DataTypes.STRING },
+  dien_thoai: { type: DataTypes.STRING },
+  vai_tro: { type: DataTypes.INTEGER, defaultValue: 0 }, // 0 = user, 1 = admin
+  khoa: { type: DataTypes.BOOLEAN, defaultValue: false },
+  hinh: { type: DataTypes.STRING },
+  email_verified_at: { type: DataTypes.DATE },
+  remember_token: { type: DataTypes.STRING },
+  created_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
+  otpCode: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  otpExpires: {
+    type: DataTypes.DATE,
+    allowNull: true,
+  },
+}, {
+  tableName: "users",
+  timestamps: false,
+});
 
 // Thiết lập quan hệ giữa các bảng
 LoaiXeModel.hasMany(PhuTungXeModel, { foreignKey: 'id_loai_xe' });
@@ -149,12 +173,14 @@ PhuTungXeModel.hasMany(BienTheSanPhamModel, { foreignKey: 'ma_san_pham' });
 BienTheSanPhamModel.belongsTo(PhuTungXeModel, { foreignKey: 'ma_san_pham' });
 
 // Xuất module để sử dụng
+console.log('Exporting Users:', Users);
 module.exports = {
   sequelize,
+  Users,
+  // UserModel,
   LoaiXeModel,
   PhuTungXeModel,
   BienTheSanPhamModel,
   GioHangModel,
-  User,
-  LienHeModel
+  LienHeModel,
 };
