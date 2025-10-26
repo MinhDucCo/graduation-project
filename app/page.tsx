@@ -76,7 +76,7 @@ function SanPhamXeMay() {
             opacity-0 translate-y-4
             animate-[fadeInSlow_1.2s_ease-in-out_forwards]
           `}
-            style={{ animationDelay: `${i * 0.15}s` }} // hiện lần lượt
+            style={{ animationDelay: `${i * 0}s` }} // hiện lần lượt
           >
             <ShowSP sp={sp} />
           </div>
@@ -153,7 +153,7 @@ function PhuTungOto() {
           <div
             key={sp.ma_san_pham}
             className="opacity-0 translate-y-4 animate-[fadeInSlow_1.2s_ease-in-out_forwards]"
-            style={{ animationDelay: `${i * 0.15}s` }} // hiện lần lượt
+            style={{ animationDelay: `${i * 0}s` }} // hiện lần lượt
           >
             <ShowSP sp={sp} />
           </div>

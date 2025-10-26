@@ -6,10 +6,11 @@ import Image from "next/image";
 
 export default function Header() {
   const [searchTerm, setSearchTerm] = useState<string>('');
+  const [cart, setCart] = useState<any[]>([]);
+  const [user, setUser] = useState<any>(null);
   const router = useRouter();
 
-  // Giỏ hàng
-  const [cart, setCart] = useState<any[]>([]);
+  // 🛒 Lấy dữ liệu giỏ hàng
   const fetchCart = () => {
     fetch("http://localhost:3000/api/cart")
       .then(res => res.json())
@@ -19,11 +20,13 @@ export default function Header() {
 
   useEffect(() => {
     fetchCart();
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) setUser(JSON.parse(storedUser));
   }, []);
 
   const totalQuantity = cart.reduce((sum, item) => sum + (Number(item.so_luong) || 0), 0);
 
-  // Xử lý tìm kiếm
+  // 🔍 Xử lý tìm kiếm
   const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (searchTerm.trim()) {
@@ -31,17 +34,24 @@ export default function Header() {
     }
   };
 
+  // 🚪 Đăng xuất
+  const handleLogout = () => {
+    localStorage.removeItem("user");
+    setUser(null);
+    router.push("/Login");
+  };
+
   return (
     <header className="w-full shadow-md">
       {/* Top Bar */}
       <div className="flex justify-between items-center bg-white px-6 py-2">
         {/* Logo */}
-        <div className="flex items-center">
+        <div className="flex items-center cursor-pointer" onClick={() => router.push("/")}>
           <Image
-            src="/images/logo gearX.png" // đường dẫn public
+            src="/images/logo gearX.png"
             alt="Phụ Tùng Xe Máy"
-            width={190} // chiều rộng cố định
-            height={130} // chiều cao cố định
+            width={190}
+            height={130}
             className="object-contain"
           />
         </div>
@@ -60,21 +70,45 @@ export default function Header() {
           </button>
         </form>
 
-        {/* Hotline & Giỏ hàng */}
-        {/* Đăng nhập / Đăng ký */}
-        <div className="flex gap-2 items-center">
-          <button
-            className="bg-red-600 text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-red-700 transition"
-            onClick={() => router.push("/Login")}
-          >
-            Đăng nhập
-          </button>
-          <button
-            className="bg-red-600 text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-red-700 transition"
-            onClick={() => router.push("/Register")}
-          >
-            Đăng ký
-          </button>
+        {/* User + Giỏ hàng */}
+        <div className="flex gap-3 items-center">
+          {/* Nếu CHƯA đăng nhập */}
+          {!user ? (
+            <>
+              <button
+  className="bg-gradient-to-r from-red-500 to-pink-500 text-white font-semibold px-4 py-2 text-sm rounded-lg shadow-md hover:from-red-600 hover:to-pink-600 hover:scale-105 transition-all duration-200 ease-in-out"
+  onClick={() => router.push("/Login")}
+>
+  Đăng nhập
+</button>
+
+<button
+  className="bg-gradient-to-r from-red-500 to-pink-500 text-white font-semibold px-4 py-2 text-sm rounded-lg shadow-md hover:from-red-600 hover:to-pink-600 hover:scale-105 transition-all duration-200 ease-in-out"
+  onClick={() => router.push("/Register")}
+>
+  Đăng ký
+</button>
+
+
+            </>
+          ) : (
+            // Nếu ĐÃ đăng nhập
+            <div className="flex items-center gap-3">
+              <span
+                className="font-semibold text-gray-800 cursor-pointer hover:text-red-600 transition"
+                onClick={() => router.push(user.vai_tro === 1 ? "/Admin" : "/User")}
+              >
+                Xin chào, {user.ho_ten || user.name || "Người dùng"}
+              </span>
+              <button
+                onClick={handleLogout}
+                className="bg-gradient-to-r from-red-500 to-pink-500 text-white font-semibold px-4 py-2 text-sm rounded-lg shadow-md hover:from-red-600 hover:to-pink-600 hover:scale-105 transition-all duration-200 ease-in-out"
+              >
+                Đăng xuất
+              </button>
+
+            </div>
+          )}
 
           {/* Icon giỏ hàng */}
           <div
@@ -89,7 +123,6 @@ export default function Header() {
             )}
           </div>
         </div>
-
       </div>
 
       {/* Navbar */}

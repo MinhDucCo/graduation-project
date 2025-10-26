@@ -460,7 +460,6 @@ app.post("/api/auth/login", async (req, res) => {
     if (!user) {
       return res.status(400).json({ message: "Email không tồn tại!" });
     }
-
     let match = false;
 
     // 🧩 Nếu mật khẩu trong DB bắt đầu bằng "$2b$", nghĩa là đã được bcrypt hash
@@ -605,7 +604,7 @@ app.post("/api/auth/forgot-password", async (req, res) => {
     });
 
     const mailOptions = {
-      from: "sxodia247@gmail.com",
+       from: '"GreaX Support" <sxodia247@gmail.com>',
       to: email,
       subject: "Mã xác nhận đổi mật khẩu",
       html: `

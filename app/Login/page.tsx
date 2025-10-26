@@ -12,100 +12,125 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const res = await fetch('http://localhost:3000/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("http://localhost:3000/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, mat_khau: matKhau }),
       });
 
-      console.log('[Login] response status', res.status, res.statusText);
+      console.log("[Login] response status:", res.status, res.statusText);
 
-      const text = await res.text();
-      let data: any = {};
+      let data: any;
       try {
-        data = text ? JSON.parse(text) : {};
-      } catch {
-        data = { message: text };
+        data = await res.json();
+      } catch (err) {
+        const text = await res.text();
+        data = { message: text || "Phản hồi không hợp lệ từ server" };
       }
 
+      console.log("[Login] response body:", data);
 
-      console.log('[Login] response body', data);
+      if (!res.ok) {
+        alert(`❌ ${data.message || `Lỗi (${res.status})`}`);
+        return;
+      }
 
-      if (res.ok) {
-        alert('✅ ' + (data.message || 'Đăng nhập thành công'));
+      // 🔹 Kiểm tra dữ liệu user có tồn tại
+      if (!data.user) {
+        alert("❌ Dữ liệu người dùng không hợp lệ hoặc thiếu trong phản hồi!");
+        return;
+      }
 
-        // 🔹 Lưu thông tin user vào localStorage để sử dụng sau này
-        localStorage.setItem('user', JSON.stringify(data.user));
+      // 🔹 Lưu thông tin user vào localStorage
+      localStorage.setItem("user", JSON.stringify(data.user));
 
-        // 🔹 Kiểm tra vai trò: 1 = admin, còn lại là user
-        const vaiTro = Number(data.user?.vai_tro);
-        if (vaiTro === 1) {
-          router.push('/Admin');
-        } else {
-          router.push('/User');
-        }
+      // 🔹 Kiểm tra vai trò: 1 = admin, còn lại là user
+      const vaiTro = Number(data.user.vai_tro);
+      if (vaiTro === 1) {
+        router.push("/Admin");
       } else {
-        alert('❌ ' + (data.message || `Lỗi (${res.status})`));
+        router.push("/User");
       }
     } catch (err) {
-      console.error('[Login] fetch error', err);
-      alert('❌ Lỗi hệ thống! Kiểm tra console và backend logs.');
+      console.error("[Login] fetch error:", err);
+      alert("❌ Lỗi hệ thống! Không thể kết nối đến máy chủ.");
     } finally {
       setLoading(false);
     }
-  }
+  };
+
 
   return (
-    <div className="flex justify-center items-center min-h-screen bg-gray-100 px-4">
-      <div className="w-full max-w-md bg-white rounded-xl shadow-lg p-6">
-        <h2 className="text-2xl font-bold text-center mb-6 text-blue-700">Đăng nhập</h2>
-        <form onSubmit={handleLogin} className="space-y-4">
+    <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-blue-200 via-white to-blue-300 px-4">
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-8 transform transition-all duration-300 hover:scale-[1.02]">
+        <h2 className="text-3xl font-bold text-center mb-8 text-blue-700 tracking-wide">
+          Đăng nhập
+        </h2>
+
+        <form onSubmit={handleLogin} className="space-y-6">
+          {/* Email */}
           <div>
-            <label className="block text-sm font-medium mb-1">Email</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Email
+            </label>
             <input
               type="email"
               placeholder="Nhập email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
               required
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none transition duration-200"
             />
           </div>
+
+          {/* Mật khẩu */}
           <div>
-            <label className="block text-sm font-medium mb-1">Mật khẩu</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Mật khẩu
+            </label>
             <input
               type="password"
               placeholder="Nhập mật khẩu"
               value={matKhau}
               onChange={(e) => setMatKhau(e.target.value)}
-              className="w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
               required
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none transition duration-200"
             />
           </div>
+
+          {/* Nút đăng nhập */}
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-blue-600 text-white py-2 rounded-md font-semibold hover:bg-blue-700 transition"
+            className="w-full bg-blue-600 text-white font-semibold py-3 rounded-lg hover:bg-blue-700 hover:shadow-lg transition duration-200 disabled:opacity-60"
           >
-            {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
+            {loading ? "Đang đăng nhập..." : "Đăng nhập"}
           </button>
         </form>
-        <p className="text-center text-sm text-gray-500 mt-4">
-          Chưa có tài khoản?{' '}
-          <span
-            className="text-blue-600 hover:underline cursor-pointer"
-            onClick={() => router.push('/Register')}
-          >
-            Đăng ký ngay
-          </span>
-        </p>
-        <span
-            className="text-blue-600 hover:underline cursor-pointer"
-            onClick={() => router.push('/forgot-password')}
-          >
-            Quên mật khẩu?
-          </span>
+
+        {/* Liên kết phụ */}
+        <div className="text-center mt-6 space-y-2">
+          <p className="text-sm text-gray-600">
+            Chưa có tài khoản?{" "}
+            <span
+              className="text-blue-600 hover:underline font-medium cursor-pointer"
+              onClick={() => router.push("/Register")}
+            >
+              Đăng ký ngay
+            </span>
+          </p>
+
+          <p>
+            <span
+              className="text-blue-600 hover:underline text-sm font-medium cursor-pointer"
+              onClick={() => router.push("/forgot-password")}
+            >
+              Quên mật khẩu?
+            </span>
+          </p>
+        </div>
       </div>
     </div>
   );
+
 }
