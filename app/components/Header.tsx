@@ -25,7 +25,7 @@ export default function Header() {
   }, []);
 
   const totalQuantity = cart.reduce((sum, item) => sum + (Number(item.so_luong) || 0), 0);
-
+  
   // 🔍 Xử lý tìm kiếm
   const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();

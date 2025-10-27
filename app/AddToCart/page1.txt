@@ -1,0 +1,106 @@
+"use client";
+import { useEffect, useState } from "react";
+
+export default function AddToCartPage() {
+  const [cart, setCart] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // 🧩 Hàm lấy giỏ hàng (cả khi đăng nhập và chưa đăng nhập)
+const fetchCart = async () => {
+    setLoading(true);
+    try {
+      const user = typeof window !== "undefined"
+        ? JSON.parse(localStorage.getItem("user") || "null")
+        : null;
+
+      let data: any[] = [];
+
+      if (user) {
+        // 🛒 Người dùng đã đăng nhập → fetch DB
+        const res = await fetch(`http://localhost:3000/api/cart?id_user=${user.id}`, {
+          credentials: "include",
+        });
+        data = await res.json();
+      } else {
+        // 🛒 Chưa đăng nhập → lấy từ sessionStorage
+        const sessionCart = typeof window !== "undefined"
+          ? JSON.parse(sessionStorage.getItem("cart") || "[]")
+          : [];
+        data = sessionCart;
+      }
+
+      setCart(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error("🚨 Lỗi tải giỏ hàng:", err);
+      setCart([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCart();
+  }, []);
+
+  // 🧮 Tính tổng tiền
+  const tongTien = cart.reduce(
+    (sum, item) => sum + (Number(item.gia) || 0) * (Number(item.so_luong) || 0),
+    0
+  );
+  // 🕒 Hiển thị khi đang tải
+  if (loading) return <p className="text-center">Đang tải giỏ hàng...</p>;
+
+  // ❌ Hiển thị khi giỏ trống
+  if (!cart || cart.length === 0)
+    return <h1 className="text-center text-xl font-semibold mt-10">🛒 Giỏ hàng trống</h1>;
+
+  // ✅ Hiển thị giỏ hàng
+  return (
+    <div className="max-w-5xl mx-auto p-6 bg-white rounded-xl shadow-lg mt-10">
+      <h2 className="text-2xl font-bold mb-6 text-center">🛒 Giỏ hàng của bạn</h2>
+
+      <table className="w-full border-collapse">
+        <thead>
+          <tr className="bg-gray-100 border-b">
+            <th className="p-3 text-left">Hình</th>
+            <th className="p-3 text-left">Tên sản phẩm</th>
+            <th className="p-3 text-center">Số lượng</th>
+            <th className="p-3 text-right">Giá</th>
+            <th className="p-3 text-right">Thành tiền</th>
+          </tr>
+        </thead>
+        <tbody>
+          {cart.map((item, i) => (
+            <tr key={i} className="border-b hover:bg-gray-50">
+              <td className="p-3">
+                <img
+                  src={item.hinh}
+                  alt={item.ten_san_pham}
+                  className="w-20 h-20 object-cover rounded-lg"
+                />
+              </td>
+              <td className="p-3">{item.ten_san_pham}</td>
+              <td className="p-3 text-center">{item.so_luong}</td>
+              <td className="p-3 text-right">
+                {Number(item.gia).toLocaleString("vi-VN")} ₫
+              </td>
+              <td className="p-3 text-right">
+                {(Number(item.gia) * Number(item.so_luong)).toLocaleString("vi-VN")} ₫
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      {/* Tổng tiền */}
+      <div className="mt-6 text-right">
+        <p className="text-lg font-bold">
+          Tổng tiền:{" "}
+          <span className="text-red-600">
+            {tongTien.toLocaleString("vi-VN")} ₫
+          </span>
+        </p>
+      </div>
+    </div>
+  );
+}

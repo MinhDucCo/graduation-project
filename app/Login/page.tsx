@@ -8,56 +8,82 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setLoading(true);
+  e.preventDefault();
+  setLoading(true);
 
+  try {
+    const res = await fetch("http://localhost:3000/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, mat_khau: matKhau }),
+    });
+
+    console.log("[Login] response status:", res.status, res.statusText);
+
+    let data: any;
     try {
-      const res = await fetch("http://localhost:3000/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, mat_khau: matKhau }),
-      });
-
-      console.log("[Login] response status:", res.status, res.statusText);
-
-      let data: any;
-      try {
-        data = await res.json();
-      } catch (err) {
-        const text = await res.text();
-        data = { message: text || "Phản hồi không hợp lệ từ server" };
-      }
-
-      console.log("[Login] response body:", data);
-
-      if (!res.ok) {
-        alert(`❌ ${data.message || `Lỗi (${res.status})`}`);
-        return;
-      }
-
-      // 🔹 Kiểm tra dữ liệu user có tồn tại
-      if (!data.user) {
-        alert("❌ Dữ liệu người dùng không hợp lệ hoặc thiếu trong phản hồi!");
-        return;
-      }
-
-      // 🔹 Lưu thông tin user vào localStorage
-      localStorage.setItem("user", JSON.stringify(data.user));
-
-      // 🔹 Kiểm tra vai trò: 1 = admin, còn lại là user
-      const vaiTro = Number(data.user.vai_tro);
-      if (vaiTro === 1) {
-        router.push("/Admin");
-      } else {
-        router.push("/User");
-      }
+      data = await res.json();
     } catch (err) {
-      console.error("[Login] fetch error:", err);
-      alert("❌ Lỗi hệ thống! Không thể kết nối đến máy chủ.");
-    } finally {
-      setLoading(false);
+      const text = await res.text();
+      data = { message: text || "Phản hồi không hợp lệ từ server" };
     }
-  };
+
+    console.log("[Login] response body:", data);
+
+    if (!res.ok) {
+      alert(`❌ ${data.message || `Lỗi (${res.status})`}`);
+      return;
+    }
+
+    // 🔹 Kiểm tra dữ liệu user có tồn tại
+    if (!data.user) {
+      alert("❌ Dữ liệu người dùng không hợp lệ hoặc thiếu trong phản hồi!");
+      return;
+    }
+
+    // 🔹 Lưu thông tin user vào localStorage
+    localStorage.setItem("user", JSON.stringify(data.user));
+
+    // ✅ Gộp giỏ hàng tạm vào DB
+    try {
+      const sessionCart = JSON.parse(sessionStorage.getItem("cart") || "[]");
+
+      if (sessionCart.length > 0) {
+        console.log("🛒 Gộp giỏ hàng session vào DB:", sessionCart);
+        for (const item of sessionCart) {
+          await fetch("http://localhost:3000/api/cart/add", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              ...item,
+              id_user: data.user.id, // gán id_user thực
+            }),
+          });
+        }
+
+        // ✅ Xóa giỏ hàng tạm sau khi gộp
+        sessionStorage.removeItem("cart");
+        console.log("✅ Giỏ hàng session đã được gộp và xóa");
+      }
+    } catch (mergeError) {
+      console.error("⚠️ Lỗi khi gộp giỏ hàng:", mergeError);
+    }
+
+    // 🔹 Kiểm tra vai trò: 1 = admin, còn lại là user
+    const vaiTro = Number(data.user.vai_tro);
+    if (vaiTro === 1) {
+      router.push("/Admin");
+    } else {
+      router.push("/User");
+    }
+  } catch (err) {
+    console.error("[Login] fetch error:", err);
+    alert("❌ Lỗi hệ thống! Không thể kết nối đến máy chủ.");
+  } finally {
+    setLoading(false);
+  }
+};
+
 
 
   return (

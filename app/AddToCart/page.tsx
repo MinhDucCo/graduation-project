@@ -5,17 +5,37 @@ export default function AddToCart() {
   const [cart, setCart] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchCart = () => {
-    fetch("http://localhost:3000/api/cart")
-      .then(res => res.json())
-      .then(data => {
-        setCart(data);
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error(err);
-        setLoading(false);
-      });
+  // 🛒 Fetch giỏ hàng: DB nếu login, sessionStorage nếu chưa login
+  const fetchCart = async () => {
+    setLoading(true);
+    try {
+      const user = typeof window !== "undefined"
+        ? JSON.parse(localStorage.getItem("user") || "null")
+        : null;
+
+      let data: any[] = [];
+
+      if (user) {
+        // Đã đăng nhập → fetch DB
+        const res = await fetch(`http://localhost:3000/api/cart?id_user=${user.id}`, {
+          credentials: "include",
+        });
+        data = await res.json();
+      } else {
+        // Chưa đăng nhập → lấy sessionStorage
+        const sessionCart = typeof window !== "undefined"
+          ? JSON.parse(sessionStorage.getItem("cart") || "[]")
+          : [];
+        data = sessionCart;
+      }
+
+      setCart(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error("🚨 Lỗi tải giỏ hàng:", err);
+      setCart([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -31,31 +51,69 @@ export default function AddToCart() {
   );
 
   // Xóa sản phẩm
-  const handleDelete = async (id: number) => {
-    try {
+const handleDelete = async (id: number) => {
+  try {
+    const user = typeof window !== "undefined"
+      ? JSON.parse(localStorage.getItem("user") || "null")
+      : null;
+
+    if (user) {
+      // Xóa DB
       const res = await fetch(`http://localhost:3000/api/cart/delete/${id}`, {
         method: "DELETE",
       });
-      if (res.ok) fetchCart();
-    } catch (err) {
-      console.error(err);
+      if (res.ok) {
+        setCart((prev) => prev.filter((item) => (item.id || item.id_san_pham) !== id));
+      }
+    } else {
+      // Xóa sessionStorage
+      const sessionCart = JSON.parse(sessionStorage.getItem("cart") || "[]");
+      const newCart = sessionCart.filter((item: any) => item.id_san_pham !== id);
+      sessionStorage.setItem("cart", JSON.stringify(newCart));
+      setCart(newCart);
     }
-  };
+  } catch (err) {
+    console.error(err);
+  }
+};
 
   // Chỉnh số lượng
   const handleQuantityChange = async (id: number, newQty: number) => {
-    if (newQty < 1) return;
-    try {
+  if (newQty < 1) return;
+
+  try {
+    const user = typeof window !== "undefined"
+      ? JSON.parse(localStorage.getItem("user") || "null")
+      : null;
+
+    if (user) {
+      // Update DB
       const res = await fetch(`http://localhost:3000/api/cart/update/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ so_luong: newQty }),
       });
-      if (res.ok) fetchCart();
-    } catch (err) {
-      console.error(err);
+      if (res.ok) {
+        // Cập nhật local state luôn để UI phản hồi ngay
+        setCart((prev) =>
+          prev.map((item) =>
+            (item.id || item.id_san_pham) === id ? { ...item, so_luong: newQty } : item
+          )
+        );
+      }
+    } else {
+      // Update sessionStorage
+      const sessionCart = JSON.parse(sessionStorage.getItem("cart") || "[]");
+      const newCart = sessionCart.map((item: any) =>
+        item.id_san_pham === id ? { ...item, so_luong: newQty } : item
+      );
+      sessionStorage.setItem("cart", JSON.stringify(newCart));
+      setCart(newCart); // cập nhật state luôn
     }
-  };
+  } catch (err) {
+    console.error(err);
+  }
+};
 
   return (
     <div className="max-w-5xl mx-auto my-10 bg-white p-6 rounded-xl shadow-lg">
@@ -73,7 +131,7 @@ export default function AddToCart() {
       {/* Danh sách sản phẩm */}
       {cart.map((item: any) => (
         <div
-          key={item.id}
+          key={item.id || item.id_san_pham} // sessionStorage chưa có id
           className="grid grid-cols-[80px_1fr_120px_120px_80px] items-center gap-4 p-3 border-b hover:bg-gray-50 transition-colors duration-200 rounded-lg md:rounded-none"
         >
           <img
@@ -89,21 +147,21 @@ export default function AddToCart() {
           <div className="flex items-center">
             <button
               className="px-2 py-1 bg-gray-200 rounded-l hover:bg-gray-300 transition-colors"
-              onClick={() => handleQuantityChange(item.id, item.so_luong - 1)}
+              onClick={() => handleQuantityChange(item.id || item.id_san_pham, item.so_luong - 1)}
             >
               -
             </button>
             <span className="px-3">{item.so_luong}</span>
             <button
               className="px-2 py-1 bg-gray-200 rounded-r hover:bg-gray-300 transition-colors"
-              onClick={() => handleQuantityChange(item.id, item.so_luong + 1)}
+              onClick={() => handleQuantityChange(item.id || item.id_san_pham, item.so_luong + 1)}
             >
               +
             </button>
           </div>
           <button
             className="text-red-600 hover:underline font-semibold transition-colors"
-            onClick={() => handleDelete(item.id)}
+            onClick={() => handleDelete(item.id || item.id_san_pham)}
           >
             Xóa
           </button>

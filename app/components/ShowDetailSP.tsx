@@ -10,16 +10,15 @@ export default function ShowDetailSP({ sp }: { sp: ISanPham }) {
 
   const router = useRouter();
 
-  // Danh sách hình ảnh dựa theo biến thể
   const hinhPhu = [
     selectedVariant?.hinh ||
-    "https://via.placeholder.com/400x300?text=Hinh+Chinh",
+      "https://via.placeholder.com/400x300?text=Hinh+Chinh",
     selectedVariant?.hinh_phu1 ||
-    "https://placehold.co/400x300?text=Hinh+Phu+1",
+      "https://placehold.co/400x300?text=Hinh+Phu+1",
     selectedVariant?.hinh_phu2 ||
-    "https://placehold.co/400x300?text=Hinh+Phu+2",
+      "https://placehold.co/400x300?text=Hinh+Phu+2",
     selectedVariant?.hinh_phu3 ||
-    "https://placehold.co/400x300?text=Hinh+Phu+3",
+      "https://placehold.co/400x300?text=Hinh+Phu+3",
   ];
 
   const [hinhChinh, setHinhChinh] = useState<string>(hinhPhu[0]);
@@ -35,47 +34,108 @@ export default function ShowDetailSP({ sp }: { sp: ISanPham }) {
       setHinhChinh("https://via.placeholder.com/400x300?text=Loi+Tai+Hinh");
   }, [hinhChinh]);
 
+  // ✅ Khi user đăng nhập -> gộp giỏ hàng tạm (sessionStorage) vào DB
+  useEffect(() => {
+    const mergeCartToDB = async () => {
+      const user =
+        typeof window !== "undefined"
+          ? JSON.parse(localStorage.getItem("user") || "null")
+          : null;
+
+      if (!user) return; // nếu chưa đăng nhập thì bỏ qua
+
+      const sessionCart = JSON.parse(sessionStorage.getItem("cart") || "[]");
+
+      if (sessionCart.length > 0) {
+        for (const item of sessionCart) {
+          await fetch("http://localhost:3000/api/cart/add", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              ...item,
+              id_user: user.id, // dùng id của user sau đăng nhập
+            }),
+          });
+        }
+
+        sessionStorage.removeItem("cart"); // xóa giỏ hàng tạm sau khi gộp
+        console.log("✅ Gộp giỏ hàng session vào DB thành công!");
+      }
+    };
+
+    mergeCartToDB();
+  }, []);
+
   // 🛒 Thêm vào giỏ hàng
   const handleAddToCart = async () => {
-    if (!selectedVariant) {
-      alert("Vui lòng chọn màu sắc sản phẩm!");
-      return;
-    }
+  if (!selectedVariant) {
+    alert("Vui lòng chọn màu sắc sản phẩm!");
+    return;
+  }
 
-    try {
-      // dữ liệu gửi lên API (trùng tên với cột trong bảng `gio_hang`)
-      const data = {
-        ten_san_pham: sp.ten_san_pham,
-        gia: selectedVariant.gia,
-        id_user: 1,
-        id_san_pham: sp.ma_san_pham, // dùng fallback
-        so_luong: 1,
-        hinh: selectedVariant.hinh,
-        mau_sac: selectedVariant.mau_sac,
-      };
-      console.log("🔍 selectedVariant:", selectedVariant);
-      console.log("📦 Dữ liệu thêm giỏ hàng:", data);
-      
-      const res = await fetch("http://localhost:3000/api/cart/add", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
+  const user =
+    typeof window !== "undefined"
+      ? JSON.parse(localStorage.getItem("user") || "null")
+      : null;
 
-      const result = await res.json();
-
-
-      // if (res.ok) {
-      //   alert("✅ Đã thêm sản phẩm vào giỏ hàng!");
-      //   router.push("/AddToCart");
-      // } else {
-      //   alert("❌ Thêm thất bại: " + result.message);
-      // }
-    } catch (error) {
-      console.error("🚨 Lỗi khi thêm giỏ hàng:", error);
-      alert("Không thể thêm vào giỏ hàng!");
-    }
+  const newItem = {
+    ten_san_pham: sp.ten_san_pham,
+    gia: selectedVariant.gia,
+    id_user: user ? user.id : null,
+    id_san_pham: sp.ma_san_pham,
+    so_luong: 1,
+    hinh: selectedVariant.hinh,
+    mau_sac: selectedVariant.mau_sac,
   };
+
+  // Nếu chưa đăng nhập → Lưu tạm trong sessionStorage
+  if (!user) {
+    let cart = [];
+    if (typeof window !== "undefined") {
+      try {
+        cart = JSON.parse(sessionStorage.getItem("cart") || "[]");
+      } catch {
+        cart = [];
+      }
+    }
+
+    // Kiểm tra trùng sản phẩm (nếu có thì cộng thêm số lượng)
+    const index = cart.findIndex(
+  (item: { id_san_pham: number; mau_sac: string }) =>
+    item.id_san_pham === newItem.id_san_pham && item.mau_sac === newItem.mau_sac
+);
+    if (index !== -1) {
+      cart[index].so_luong += 1;
+    } else {
+      cart.push(newItem);
+    }
+
+    sessionStorage.setItem("cart", JSON.stringify(cart));
+    alert("🛒 Đã thêm sản phẩm vào giỏ hàng tạm!");
+    return;
+  }
+
+  // Nếu đã đăng nhập → Gửi API như bình thường
+  try {
+    const res = await fetch("http://localhost:3000/api/cart/add", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(newItem),
+    });
+
+    const result = await res.json();
+
+    if (res.ok) {
+      alert("✅ Đã thêm sản phẩm vào giỏ hàng!");
+    } else {
+      alert("❌ Thêm thất bại: " + result.message);
+    }
+  } catch (error) {
+    console.error("🚨 Lỗi khi thêm giỏ hàng:", error);
+    alert("Không thể thêm vào giỏ hàng!");
+  }
+};
+
 
   return (
     <div className="max-w-6xl mx-auto my-10 p-6 bg-white shadow-xl rounded-2xl">
@@ -93,14 +153,15 @@ export default function ShowDetailSP({ sp }: { sp: ISanPham }) {
                 key={index}
                 src={hinh}
                 alt={`Hình phụ ${index + 1}`}
-                className={`w-24 h-24 object-cover rounded-md cursor-pointer border-2 transition ${hinhChinh === hinh
+                className={`w-24 h-24 object-cover rounded-md cursor-pointer border-2 transition ${
+                  hinhChinh === hinh
                     ? "border-blue-600"
                     : "border-gray-200 hover:border-gray-400"
-                  }`}
+                }`}
                 onClick={() => setHinhChinh(hinh)}
                 onError={(e) =>
-                (e.currentTarget.src =
-                  "https://via.placeholder.com/400x300?text=Loi+Tai+Hinh+Phu")
+                  (e.currentTarget.src =
+                    "https://via.placeholder.com/400x300?text=Loi+Tai+Hinh+Phu")
                 }
               />
             ))}
@@ -114,14 +175,12 @@ export default function ShowDetailSP({ sp }: { sp: ISanPham }) {
               {sp.ten_san_pham}
             </h3>
 
-            {/* Giá */}
             <p className="text-2xl text-red-600 font-semibold mb-4">
               {selectedVariant
                 ? Number(selectedVariant.gia).toLocaleString("vi-VN") + " ₫"
                 : "Chưa có giá"}
             </p>
 
-            {/* Màu sắc */}
             <div className="mb-4">
               <b>Màu sắc:</b>
               <div className="flex gap-2 mt-2 flex-wrap">
@@ -129,10 +188,11 @@ export default function ShowDetailSP({ sp }: { sp: ISanPham }) {
                   <button
                     key={index}
                     onClick={() => setSelectedVariant(bt)}
-                    className={`px-4 py-2 rounded-lg border transition ${selectedVariant?.id === bt.id
+                    className={`px-4 py-2 rounded-lg border transition ${
+                      selectedVariant?.id === bt.id
                         ? "bg-blue-600 text-white border-blue-600"
                         : "bg-gray-100 text-gray-800 border-gray-300 hover:bg-gray-200"
-                      }`}
+                    }`}
                   >
                     {bt.mau_sac}
                   </button>

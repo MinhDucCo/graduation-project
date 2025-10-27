@@ -71,7 +71,7 @@ export default function SanPhamPage() {
             <div
               key={sp.ma_san_pham || i}
               className="opacity-0 translate-y-4 animate-[fadeInSlow_1.2s_ease-in-out_forwards]"
-              style={{ animationDelay: `${i * 0.05}s` }}
+              style={{ animationDelay: `${i * 0}s` }}
             >
               <ShowSP sp={sp} />
             </div>
@@ -107,15 +107,15 @@ export default function SanPhamPage() {
       {/* ✅ CSS animation */}
       <style jsx>{`
         @keyframes fadeInSlow {
-          from {
-            opacity: 0;
-            transform: translateY(20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
+        from {
+          opacity: 0;
+          transform: translateY(20px));
         }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
       `}</style>
     </div>
   );
