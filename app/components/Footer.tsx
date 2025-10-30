@@ -26,12 +26,11 @@ const Footer: React.FC = () => {
         {/* Left Info */}
         <div>
           <img
-            src="/images/logo_gearX-removebg.png"
+            src="/images/logobn.png"
             alt="gearX"
-            className="w-60"
+            className="w-40"
           />
           <p className="mb-4">
-            content
           </p>
           <ul className="space-y-2 text-sm">
             <li className="flex items-center gap-2">

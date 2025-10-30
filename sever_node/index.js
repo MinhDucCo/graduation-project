@@ -20,8 +20,12 @@ const {
   BienTheSanPhamModel,
   GioHangModel,
   LienHeModel,
+  DonHangModel,
+  ChiTietDonHangModel
 } = require("./database.js");
 const app = express();
+const routes = require("./Routes.js");
+app.use("/api", routes);
 app.use(
   session({
     secret: "supersecretkey",
@@ -345,20 +349,8 @@ app.get('/api/timkiem/:tu_khoa/count', async (req, res) => {
 
 
 
-// 🛒 Lấy giỏ hàng theo ID người dùng
-// app.get("/api/cart/:id_user", async (req, res) => {
-//   try {
-//     const id_user = req.params.id_user;
-//     console.log("🧠 Đang lấy giỏ hàng cho user:", id_user);
 
-//     const cart = await GioHangModel.findAll({ where: { id_user } });
-//     console.log("✅ Kết quả:", cart.length, "sản phẩm");
-//     res.json(cart);
-//   } catch (err) {
-//     console.error("🚨 Lỗi khi lấy giỏ hàng:", err);
-//     res.status(500).json({ message: "Không thể lấy giỏ hàng", error: err.message });
-//   }
-// });
+
 
 app.get("/api/cart", async (req, res) => {
   const { id_user } = req.query;
@@ -462,41 +454,51 @@ app.delete("/api/cart/delete/:id", async (req, res) => {
 });
 
 
-// Cập nhật số lượng sản phẩm trong giỏ
+// Cập nhật số lượng sản phẩm trong giỏ và kiểm tra tồn kho
 app.put("/api/cart/update/:id", async (req, res) => {
   const { so_luong } = req.body;
   const { id } = req.params;
 
   try {
+    // Lấy sản phẩm trong giỏ hàng
+    const gioHangItem = await GioHangModel.findOne({ where: { id } });
+
+    if (!gioHangItem) {
+      return res.status(404).json({ error: "Không tìm thấy sản phẩm trong giỏ hàng" });
+    }
+
+    // Tìm biến thể sản phẩm theo mã sản phẩm
+    const bienThe = await BienTheSanPhamModel.findOne({
+  where: { ma_san_pham: gioHangItem.id_san_pham },
+});
+
+
+    if (!bienThe) {
+      return res.status(404).json({ error: "Không tìm thấy biến thể sản phẩm" });
+    }
+
+    // Kiểm tra tồn kho
+    if (so_luong > bienThe.so_luong) {
+      return res.status(400).json({
+        error: `Số lượng vượt quá tồn kho! Chỉ còn ${bienThe.so_luong} sản phẩm.`,
+      });
+    }
+
+    // Cập nhật số lượng
     await GioHangModel.update({ so_luong }, { where: { id } });
-    res.json({ success: true });
+
+    res.json({ success: true, message: "Cập nhật số lượng thành công" });
   } catch (err) {
-    console.error(err);
+    console.error("Lỗi cập nhật giỏ hàng:", err);
     res.status(500).json({ error: "Cập nhật số lượng thất bại" });
   }
 });
-//Khi người dùng đăng nhập mà trước đó có session giỏ hàng, gộp giỏ hàng session vào giỏ hàng DB
-// app.post("/api/cart/merge-session", async (req, res) => {
-//   const { id_user } = req.body;
-//   const cartSession = req.session.cart || [];
 
-//   try {
-//     for (const item of cartSession) {
-//       await GioHangModel.create({
-//         id_user,
-//         ...item,
-//       });
-//     }
-//     req.session.cart = []; // clear session sau khi gộp
-//     res.json({ success: true });
-//   } catch (err) {
-//     res.status(500).json({ error: "Gộp giỏ hàng thất bại" });
-//   }
-// });
+
+
+
 
 // API đăng nhập
-
-
 app.post("/api/auth/login", async (req, res) => {
   const { email, mat_khau } = req.body;
 
@@ -523,13 +525,6 @@ app.post("/api/auth/login", async (req, res) => {
     if (!match) {
       return res.status(400).json({ message: "Sai mật khẩu!" });
     }
-
-    // 🔐 Tạo JWT token
-    const token = jwt.sign(
-      { id: user.id, email: user.email, vai_tro: user.vai_tro },
-      "MY_SECRET_KEY",
-      { expiresIn: "1d" }
-    );
 
     // 📦 Lưu thông tin user vào session
     req.session.user = {
@@ -588,7 +583,6 @@ app.post("/api/auth/login", async (req, res) => {
         email: user.email,
         ho_ten: user.ho_ten,
         vai_tro: user.vai_tro,
-        token, // (nếu bạn muốn dùng ở frontend)
       },
     });
 
@@ -726,17 +720,16 @@ app.post("/api/auth/forgot-password", async (req, res) => {
 
 // ✅ API: Đặt lại mật khẩu
 app.post("/api/auth/reset-password", async (req, res) => {
-  const { email, otp, newPassword } = req.body;
+  const { otp, newPassword } = req.body; // ❌ bỏ email
 
-  if (!email || !otp || !newPassword) {
+  if (!otp || !newPassword) {
     return res.status(400).json({ message: "Thiếu thông tin!" });
   }
 
   try {
-    // Tìm user có email và OTP hợp lệ
+    // Tìm user theo mã OTP còn hạn
     const user = await Users.findOne({
       where: {
-        email,
         otpCode: otp,
         otpExpires: { [Op.gt]: new Date() }, // OTP còn hạn
       },
@@ -764,6 +757,75 @@ app.post("/api/auth/reset-password", async (req, res) => {
   }
 });
 
+// 🟢 API đặt hàng
+app.post("/api/donhang", async (req, res) => {
+  try {
+    const { ho_ten, dia_chi, dien_thoai, ghi_chu, id_user, items } = req.body;
+
+    // Kiểm tra dữ liệu đầu vào
+    if (!ho_ten || !dia_chi || !dien_thoai || !items?.length) {
+      return res.status(400).json({ error: "Thiếu thông tin đặt hàng!" });
+    }
+
+    // 🟢 Tạo đơn hàng
+    const donHang = await DonHangModel.create({
+      ngay_dat: new Date(),
+      ho_ten,
+      dia_chi,
+      dien_thoai,
+      ghi_chu,
+      id_user,
+      status: "Đang xử lý",
+    });
+
+    // 🟢 Thêm chi tiết đơn hàng
+    await Promise.all(
+      items.map((sp) =>
+        ChiTietDonHangModel.create({
+          id_don_hang: donHang.id_don_hang, // nhớ khớp với model DB
+          id_san_pham: sp.id_san_pham,
+          so_luong: sp.so_luong,
+          gia: sp.gia,
+        })
+      )
+    );
+
+    res.json({ success: true, message: "Đặt hàng thành công!", donHang });
+  } catch (err) {
+    console.error("❌ Lỗi khi tạo đơn hàng:", err);
+    res.status(500).json({ error: "Lỗi server khi tạo đơn hàng!" });
+  }
+});
+// 🟢 API lấy danh sách đơn hàng
+app.get("/api/donhang", async (req, res) => {
+  try {
+    const donHangs = await DonHangModel.findAll({
+      include: [ChiTietDonHangModel], // Lấy cả chi tiết đơn hàng
+      order: [["ngay_dat", "DESC"]],
+    });
+    res.json(donHangs);
+  } catch (err) {
+    console.error("Lỗi lấy danh sách đơn hàng:", err);
+    res.status(500).json({ error: "Không lấy được danh sách đơn hàng!" });
+  }
+});
+// 🟢 API lấy chi tiết 1 đơn hàng
+app.get("/api/donhang/:id", async (req, res) => {
+  try {
+    const donHang = await DonHangModel.findByPk(req.params.id, {
+      include: [ChiTietDonHangModel],
+    });
+
+    if (!donHang) {
+      return res.status(404).json({ error: "Không tìm thấy đơn hàng!" });
+    }
+
+    res.json(donHang);
+  } catch (err) {
+    console.error("Lỗi lấy chi tiết đơn hàng:", err);
+    res.status(500).json({ error: "Lỗi server!" });
+  }
+});
 
 
 

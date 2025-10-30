@@ -7,6 +7,7 @@ export default function RegisterPage() {
     email: "",
     mat_khau: "",
     ho_ten: "",
+     nhap_lai_mat_khau: "",
     dien_thoai: "", // thêm trường số điện thoại
   });
   const [message, setMessage] = useState("");
@@ -54,7 +55,7 @@ export default function RegisterPage() {
     }
   };
 
-  return (
+return (
   <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-blue-200 via-white to-blue-300 px-4">
     <form
       onSubmit={handleSubmit}
@@ -116,7 +117,7 @@ export default function RegisterPage() {
       </div>
 
       {/* Mật khẩu */}
-      <div className="mb-8">
+      <div className="mb-5">
         <label htmlFor="mat_khau" className="block text-sm font-semibold text-gray-700 mb-1">
           Mật khẩu
         </label>
@@ -129,6 +130,23 @@ export default function RegisterPage() {
           onChange={handleChange}
           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none transition duration-200"
           placeholder="Nhập mật khẩu"
+        />
+      </div>
+
+      {/* Nhập lại mật khẩu */}
+      <div className="mb-8">
+        <label htmlFor="nhap_lai_mat_khau" className="block text-sm font-semibold text-gray-700 mb-1">
+          Nhập lại mật khẩu
+        </label>
+        <input
+          type="password"
+          name="nhap_lai_mat_khau"
+          id="nhap_lai_mat_khau"
+          required
+          value={formData.nhap_lai_mat_khau}
+          onChange={handleChange}
+          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none transition duration-200"
+          placeholder="Nhập lại mật khẩu"
         />
       </div>
 
@@ -154,5 +172,6 @@ export default function RegisterPage() {
     </form>
   </div>
 );
+
 
 }

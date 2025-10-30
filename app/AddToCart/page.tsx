@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-
+import Link from "next/link";
 export default function AddToCart() {
   const [cart, setCart] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -175,12 +175,12 @@ const handleDelete = async (id: number) => {
 
       {/* Nút thanh toán */}
       <div className="text-right mt-4">
-        <button
-          className="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-md hover:shadow-lg"
-          onClick={() => alert("Chức năng thanh toán sắp ra mắt 😎")}
-        >
-          Thanh Toán
-        </button>
+        <Link href="/Checkout">
+          <button
+            className="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-md hover:shadow-lg">
+            Đặt Hàng
+          </button>
+        </Link>
       </div>
     </div>
   );

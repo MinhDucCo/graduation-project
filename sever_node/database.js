@@ -103,25 +103,6 @@ const GioHangModel = sequelize.define("gio_hang", {
   freezeTableName: true, // ✅ giữ nguyên tên bảng 'gio_hang'
   timestamps: false       // bỏ cột createdAt/updatedAt nếu không cần
 });
-// Model User
-// const UserModel = sequelize.define("users", {
-//   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
-//   email: { type: DataTypes.STRING, allowNull: false, unique: true },
-//   mat_khau: { type: DataTypes.STRING, allowNull: false },
-//   ho_ten: { type: DataTypes.STRING, allowNull: true },
-//   dia_chi: { type: DataTypes.STRING, allowNull: true },
-//   dien_thoai: { type: DataTypes.STRING, allowNull: true },
-//   vai_tro: { type: DataTypes.STRING, allowNull: true },
-//   khoa: { type: DataTypes.BOOLEAN, defaultValue: false },
-//   hinh: { type: DataTypes.STRING, allowNull: true },
-//   email_verified_at: { type: DataTypes.DATE, allowNull: true },
-//   remember_token: { type: DataTypes.STRING, allowNull: true },
-// }, {
-//   tableName: 'users',
-//   timestamps: true
-// });
-
-
 
 // 💬 Model mô tả bảng lien_he
 const LienHeModel = sequelize.define("lien_he", {
@@ -166,21 +147,75 @@ const Users = sequelize.define("users", {
   timestamps: false,
 });
 
+const DonHangModel = sequelize.define("don_hang", {
+  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  ngay_dat: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
+  ho_ten: { type: DataTypes.STRING(100), allowNull: false },
+  status: { type: DataTypes.STRING(50), defaultValue: "Chờ xác nhận" },
+  ghi_chu: { type: DataTypes.TEXT, allowNull: true },
+  ngay_giao: { type: DataTypes.DATE, allowNull: true },
+  dia_chi: { type: DataTypes.STRING(255), allowNull: false },
+  ten_nguoi_nhan: { type: DataTypes.STRING(100), allowNull: false },
+  id_user: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: "users",
+      key: "id",
+    },
+    onDelete: "SET NULL",
+    onUpdate: "CASCADE",
+  },
+  dien_thoai: { type: DataTypes.STRING(20), allowNull: false },
+}, {
+  timestamps: false,
+  tableName: "don_hang",
+});
+const ChiTietDonHangModel = sequelize.define("chi_tiet_don_hang", {
+  id_chi_tiet: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  id_don_hang: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    references: { model: "don_hang", key: "id" },
+    onDelete: "CASCADE", //Nếu id trong bảng don_hang bị thay đổi (cập nhật sang giá trị khác),
+    onUpdate: "CASCADE",// thì các bản ghi liên quan trong bảng chi_tiet_don_hang cũng sẽ bị thay đổi tương ứng.
+  },
+  id_san_pham: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    references: { model: "phu_tung_xe", key: "id" },
+    onDelete: "CASCADE",
+    onUpdate: "CASCADE",
+  },
+  so_luong: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 1 },
+  danh_gia: { type: DataTypes.TEXT, allowNull: true },
+  sao: { type: DataTypes.INTEGER, allowNull: true },
+  gia: { type: DataTypes.DECIMAL(10, 0), allowNull: true },
+}, {
+  timestamps: false,
+  tableName: "chi_tiet_don_hang",
+});
+
+
 // Thiết lập quan hệ giữa các bảng
 LoaiXeModel.hasMany(PhuTungXeModel, { foreignKey: 'id_loai_xe' });
 PhuTungXeModel.belongsTo(LoaiXeModel, { foreignKey: 'id_loai_xe' });
 PhuTungXeModel.hasMany(BienTheSanPhamModel, { foreignKey: 'ma_san_pham' });
 BienTheSanPhamModel.belongsTo(PhuTungXeModel, { foreignKey: 'ma_san_pham' });
+DonHangModel.hasMany(ChiTietDonHangModel, { foreignKey: "id_don_hang", onDelete: "CASCADE" });
+ChiTietDonHangModel.belongsTo(DonHangModel, { foreignKey: "id_don_hang" });
+
 
 // Xuất module để sử dụng
 console.log('Exporting Users:', Users);
 module.exports = {
   sequelize,
   Users,
-  // UserModel,
   LoaiXeModel,
   PhuTungXeModel,
   BienTheSanPhamModel,
   GioHangModel,
   LienHeModel,
+  DonHangModel,
+  ChiTietDonHangModel
 };

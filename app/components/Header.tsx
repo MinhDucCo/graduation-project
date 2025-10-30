@@ -9,23 +9,13 @@ export default function Header() {
   const [cart, setCart] = useState<any[]>([]);
   const [user, setUser] = useState<any>(null);
   const router = useRouter();
-
-  // 🛒 Lấy dữ liệu giỏ hàng
-  const fetchCart = () => {
-    fetch("http://localhost:3000/api/cart")
-      .then(res => res.json())
-      .then(data => setCart(data))
-      .catch(err => console.error(err));
-  };
+  const [totalQuantity, setTotalQuantity] = useState(0);
 
   useEffect(() => {
     fetchCart();
     const storedUser = localStorage.getItem("user");
     if (storedUser) setUser(JSON.parse(storedUser));
   }, []);
-
-  const totalQuantity = cart.reduce((sum, item) => sum + (Number(item.so_luong) || 0), 0);
-  
   // 🔍 Xử lý tìm kiếm
   const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -41,6 +31,43 @@ export default function Header() {
     router.push("/Login");
   };
 
+  // Lấy giỏ hàng từ session hoặc DB
+  const fetchCart = async () => {
+    const user = typeof window !== "undefined" ? JSON.parse(localStorage.getItem("user") || "null") : null;
+    const url = user
+      ? `http://localhost:3000/api/cart?id_user=${user.id}`
+      : null;
+
+    let cartData: any[] = [];
+
+    if (url) {
+      try {
+        const res = await fetch(url);
+        const data = await res.json();
+        cartData = Array.isArray(data) ? data : [];
+      } catch (err) {
+        console.error(err);
+      }
+    } else {
+      // Lấy từ sessionStorage nếu chưa login
+      cartData = JSON.parse(sessionStorage.getItem("cart") || "[]");
+    }
+
+    setCart(cartData);
+
+    // Tính tổng số lượng
+    const total = cartData.reduce((sum, item) => sum + (Number(item.so_luong) || 0), 0);
+    setTotalQuantity(total);
+  };
+
+  useEffect(() => {
+    fetchCart();
+    // lắng nghe thay đổi cart từ sessionStorage
+    const handleStorageChange = () => fetchCart();
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, []);
+
   return (
     <header className="w-full shadow-md">
       {/* Top Bar */}
@@ -48,10 +75,10 @@ export default function Header() {
         {/* Logo */}
         <div className="flex items-center cursor-pointer" onClick={() => router.push("/")}>
           <Image
-            src="/images/logo gearX.png"
+            src="/images/logobn.png"
             alt="Phụ Tùng Xe Máy"
-            width={190}
-            height={130}
+            width={100}
+            height={100}
             className="object-contain"
           />
         </div>
@@ -76,18 +103,18 @@ export default function Header() {
           {!user ? (
             <>
               <button
-  className="bg-gradient-to-r from-red-500 to-pink-500 text-white font-semibold px-4 py-2 text-sm rounded-lg shadow-md hover:from-red-600 hover:to-pink-600 hover:scale-105 transition-all duration-200 ease-in-out"
-  onClick={() => router.push("/Login")}
->
-  Đăng nhập
-</button>
+                className="bg-gradient-to-r from-red-500 to-pink-500 text-white font-semibold px-4 py-2 text-sm rounded-lg shadow-md hover:from-red-600 hover:to-pink-600 hover:scale-105 transition-all duration-200 ease-in-out"
+                onClick={() => router.push("/Login")}
+              >
+                Đăng nhập
+              </button>
 
-<button
-  className="bg-gradient-to-r from-red-500 to-pink-500 text-white font-semibold px-4 py-2 text-sm rounded-lg shadow-md hover:from-red-600 hover:to-pink-600 hover:scale-105 transition-all duration-200 ease-in-out"
-  onClick={() => router.push("/Register")}
->
-  Đăng ký
-</button>
+              <button
+                className="bg-gradient-to-r from-red-500 to-pink-500 text-white font-semibold px-4 py-2 text-sm rounded-lg shadow-md hover:from-red-600 hover:to-pink-600 hover:scale-105 transition-all duration-200 ease-in-out"
+                onClick={() => router.push("/Register")}
+              >
+                Đăng ký
+              </button>
 
 
             </>
@@ -115,7 +142,7 @@ export default function Header() {
             className="relative cursor-pointer"
             onClick={() => router.push("/AddToCart")}
           >
-            <FaShoppingCart size={28} />
+            <FaShoppingCart size={30} />
             {totalQuantity > 0 && (
               <span className="absolute -top-2 -right-2 bg-red-600 text-white text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full animate-pulse">
                 {totalQuantity}

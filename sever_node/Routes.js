@@ -1,6 +1,5 @@
 const express = require("express");
 const router = express.Router();
-const { sequelize } = require("../database");
  // hoặc đường dẫn đến nơi bạn khai báo Sequelize
 const { QueryTypes } = require("sequelize");
 

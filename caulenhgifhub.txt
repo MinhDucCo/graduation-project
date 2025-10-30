@@ -1,0 +1,22 @@
+# 1️⃣ Tạo và chuyển sang nhánh mới
+git checkout -b feature/update-ui
+
+# 2️⃣ (Bạn chỉnh sửa code, thêm, xóa file trong VSCode hoặc IDE của bạn)
+
+# 3️⃣ Kiểm tra trạng thái thay đổi
+git status
+
+# 4️⃣ Thêm tất cả file đã thay đổi
+git add .
+
+# 5️⃣ Commit thay đổi với nội dung mô tả
+git commit -m "Cập nhật giao diện người dùng"
+
+# 6️⃣ Đẩy nhánh mới lên GitHub
+git push -u origin feature/update-ui
+
+# ✅ (Tuỳ chọn) Nếu sau này bạn muốn cập nhật code mới nhất từ main
+git checkout main
+git pull origin main
+git checkout feature/update-ui
+git merge main

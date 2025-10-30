@@ -2,9 +2,9 @@
 import { useState } from "react";
 
 export default function ResetPasswordPage() {
-  const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -13,14 +13,23 @@ export default function ResetPasswordPage() {
     setLoading(true);
     setMessage("");
 
+    // ✅ Kiểm tra mật khẩu nhập lại
+    if (newPassword !== confirmPassword) {
+      setMessage("Mật khẩu nhập lại không khớp!");
+      setLoading(false);
+      return;
+    }
+
     try {
       const res = await fetch("http://localhost:3000/api/auth/reset-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, otp, newPassword }),
+        // ❌ bỏ email đi
+        body: JSON.stringify({ otp, newPassword }),
       });
+
       const data = await res.json();
-      setMessage(data.message);
+      setMessage(data.message || "Đặt lại mật khẩu thành công!");
     } catch {
       setMessage("Lỗi kết nối máy chủ!");
     } finally {
@@ -34,20 +43,9 @@ export default function ResetPasswordPage() {
         onSubmit={handleSubmit}
         className="bg-white/95 backdrop-blur-md p-8 rounded-2xl shadow-2xl w-full max-w-md border border-gray-100"
       >
-        {/* Tiêu đề */}
         <h2 className="text-3xl font-bold text-center mb-6 text-blue-700 tracking-wide">
           Đặt lại mật khẩu
         </h2>
-
-        {/* Email */}
-        <input
-          type="email"
-          placeholder="Email của bạn"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="w-full px-4 py-3 border border-gray-300 rounded-lg mb-5 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all"
-          required
-        />
 
         {/* Mã OTP */}
         <input
@@ -65,6 +63,16 @@ export default function ResetPasswordPage() {
           placeholder="Nhập mật khẩu mới"
           value={newPassword}
           onChange={(e) => setNewPassword(e.target.value)}
+          className="w-full px-4 py-3 border border-gray-300 rounded-lg mb-5 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all"
+          required
+        />
+
+        {/* Nhập lại mật khẩu */}
+        <input
+          type="password"
+          placeholder="Nhập lại mật khẩu"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
           className="w-full px-4 py-3 border border-gray-300 rounded-lg mb-6 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all"
           required
         />
@@ -74,7 +82,6 @@ export default function ResetPasswordPage() {
           type="submit"
           disabled={loading}
           className="w-full px-4 py-3 bg-gradient-to-r from-red-500 to-pink-500 text-white font-semibold text-sm rounded-lg shadow-md hover:from-red-600 hover:to-pink-600 hover:scale-105 transition-all duration-200 ease-in-out"
-
         >
           {loading ? "Đang đổi..." : "Đổi mật khẩu"}
         </button>
@@ -86,5 +93,4 @@ export default function ResetPasswordPage() {
       </form>
     </div>
   );
-
 }
