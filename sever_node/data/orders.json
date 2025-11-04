@@ -1,0 +1,88 @@
+[
+  {
+    "id": "ODR001",
+    "code": "ODR001",
+    "customerName": "Nguyễn Văn A",
+    "customerEmail": "a@example.com",
+    "total": 350000,
+    "status": "shipping",
+    "createdAt": "2025-11-01T09:30:00.000Z",
+    "items": [
+      {
+        "productId": "SP001",
+        "name": "Bugi cao cấp",
+        "quantity": 1,
+        "price": 120000
+      },
+      {
+        "productId": "SP002",
+        "name": "Lọc gió",
+        "quantity": 1,
+        "price": 80000
+      },
+      {
+        "productId": "SP003",
+        "name": "Nhông xích",
+        "quantity": 1,
+        "price": 150000
+      }
+    ]
+  },
+  {
+    "id": "ODR002",
+    "code": "ODR002",
+    "customerName": "Trần Thị B",
+    "customerEmail": "b@example.com",
+    "total": 480000,
+    "status": "paid",
+    "createdAt": "2025-11-02T14:10:00.000Z",
+    "items": [
+      {
+        "productId": "SP001",
+        "name": "Bugi cao cấp",
+        "quantity": 2,
+        "price": 120000
+      },
+      {
+        "productId": "SP004",
+        "name": "Dầu nhớt",
+        "quantity": 1,
+        "price": 240000
+      }
+    ]
+  },
+  {
+    "id": "ODR003",
+    "code": "ODR003",
+    "customerName": "Lê C",
+    "customerEmail": "c@example.com",
+    "total": 220000,
+    "status": "shipping",
+    "createdAt": "2025-11-03T08:45:00.000Z",
+    "items": [
+      {
+        "productId": "SP005",
+        "name": "Má phanh",
+        "quantity": 1,
+        "price": 220000
+      }
+    ]
+  },
+  {
+    "id": "ODR004",
+    "code": "ODR004",
+    "customerName": "Phạm D",
+    "customerEmail": "d@example.com",
+    "total": 150000,
+    "status": "done",
+    "createdAt": "2025-11-04T10:20:00.000Z",
+    "items": [
+      {
+        "productId": "SP003",
+        "name": "Nhông xích",
+        "quantity": 1,
+        "price": 150000
+      }
+    ]
+  }
+]

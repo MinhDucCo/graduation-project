@@ -1,6 +1,5 @@
-export default function AdminPage() {
+import AdminDashboard from './AdminDashboard';
 
-    return (
-        <h1>Admin Page</h1>
-    );
+export default function AdminPage() {
+    return <AdminDashboard />;
 }

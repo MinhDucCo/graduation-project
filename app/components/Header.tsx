@@ -52,6 +52,7 @@ export default function Header() {
             alt="Phụ Tùng Xe Máy"
             width={190}
             height={130}
+            priority
             className="object-contain"
           />
         </div>

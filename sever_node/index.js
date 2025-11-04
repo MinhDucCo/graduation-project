@@ -12,6 +12,7 @@ const nodemailer = require("nodemailer");
 const { Op } = require("sequelize");
 const session = require("express-session");
 const { sendVerificationEmail } = require("./utils/sendEmail.js");
+const { readJson, writeJson } = require('./utils/fileStore.js');
 const {
   sequelize,
   Users,
@@ -22,12 +23,18 @@ const {
   LienHeModel,
 } = require("./database.js");
 const app = express();
+app.set('trust proxy', 1);
 app.use(
   session({
+    name: 'sid',
     secret: "supersecretkey",
     resave: false,
     saveUninitialized: true,
-    cookie: { maxAge: 1000 * 60 * 60 * 24 }, // 1 ngày
+    cookie: {
+      maxAge: 1000 * 60 * 60 * 24, // 1 ngày
+      sameSite: 'lax',
+      secure: false,
+    },
   })
 );
 const port = 3000;
@@ -46,6 +53,29 @@ app.use(
   })
 );
 app.use(express.static("public"));
+// Session helper endpoints and admin guard
+function requireAdmin(req, res, next) {
+  try {
+    const user = req.session && req.session.user;
+    const role = user?.vai_tro;
+    const isAdmin = role === 'admin' || role === 'ADMIN' || role === 1 || role === '1';
+    if (!user || !isAdmin) {
+      return res.status(403).json({ message: 'Yêu cầu quyền quản trị' });
+    }
+    next();
+  } catch (e) {
+    return res.status(401).json({ message: 'Không thể xác thực' });
+  }
+}
+
+app.get('/api/auth/me', (req, res) => {
+  try {
+    const user = req.session && req.session.user;
+    res.json({ user: user || null });
+  } catch (e) {
+    res.json({ user: null });
+  }
+});
 app.get("/", (req, res) => {
   res.send(`
     <h1>API Phụ tùng xe</h1>
@@ -770,4 +800,170 @@ app.post("/api/auth/reset-password", async (req, res) => {
 
 app.listen(port, () => {
   console.log(`Server chạy tại http://localhost:${port}`);
+});
+
+// -------------------- Admin product CRUD (simple) --------------------
+// Lưu ý: endpoints này dùng để admin quản lý sản phẩm (create/update/delete)
+app.get('/api/admin/products', requireAdmin, async (req, res) => {
+  try {
+    const products = await PhuTungXeModel.findAll({
+      include: [LoaiXeModel, BienTheSanPhamModel],
+      order: [['ma_san_pham', 'ASC']],
+    });
+    res.json(products);
+  } catch (err) {
+    console.error('Lỗi lấy admin products:', err);
+    res.status(500).json({ message: 'Lỗi server' });
+  }
+});
+
+app.post('/api/admin/products', requireAdmin, async (req, res) => {
+  try {
+    const { ma_san_pham, ten_san_pham, id_loai_xe, mo_ta, an_hien, bien_the } = req.body;
+    // Nếu không có ma_san_pham, tạo mã ngẫu nhiên
+    const code = ma_san_pham || Math.random().toString(36).slice(2, 9).toUpperCase();
+    const product = await PhuTungXeModel.create({ ma_san_pham: code, ten_san_pham, id_loai_xe, mo_ta, an_hien });
+
+    // Tạo biến thể nếu có
+    if (Array.isArray(bien_the)) {
+      for (const b of bien_the) {
+        await BienTheSanPhamModel.create({ ma_san_pham: code, mau_sac: b.mau_sac || null, gia: b.gia || 0, so_luong: b.so_luong || 0, hinh: b.hinh || null });
+      }
+    }
+
+    const created = await PhuTungXeModel.findOne({ where: { ma_san_pham: code }, include: [BienTheSanPhamModel] });
+    res.json(created);
+  } catch (err) {
+    console.error('Lỗi tạo sản phẩm admin:', err);
+    res.status(500).json({ message: 'Lỗi server' });
+  }
+});
+
+app.put('/api/admin/products/:ma_san_pham', requireAdmin, async (req, res) => {
+  try {
+    const { ma_san_pham } = req.params;
+    const { ten_san_pham, id_loai_xe, mo_ta, an_hien, bien_the } = req.body;
+
+    await PhuTungXeModel.update({ ten_san_pham, id_loai_xe, mo_ta, an_hien }, { where: { ma_san_pham } });
+
+    if (Array.isArray(bien_the)) {
+      // Đơn giản: xóa các biến thể cũ và tạo lại
+      await BienTheSanPhamModel.destroy({ where: { ma_san_pham } });
+      for (const b of bien_the) {
+        await BienTheSanPhamModel.create({ ma_san_pham, mau_sac: b.mau_sac || null, gia: b.gia || 0, so_luong: b.so_luong || 0, hinh: b.hinh || null });
+      }
+    }
+
+    const updated = await PhuTungXeModel.findOne({ where: { ma_san_pham }, include: [BienTheSanPhamModel] });
+    res.json(updated);
+  } catch (err) {
+    console.error('Lỗi cập nhật sản phẩm admin:', err);
+    res.status(500).json({ message: 'Lỗi server' });
+  }
+});
+
+app.delete('/api/admin/products/:ma_san_pham', requireAdmin, async (req, res) => {
+  try {
+    const { ma_san_pham } = req.params;
+    await BienTheSanPhamModel.destroy({ where: { ma_san_pham } });
+    await PhuTungXeModel.destroy({ where: { ma_san_pham } });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Lỗi xóa sản phẩm admin:', err);
+    res.status(500).json({ message: 'Lỗi server' });
+  }
+});
+
+// -------------------- Admin users --------------------
+app.get('/api/admin/users', requireAdmin, async (req, res) => {
+  try {
+    const users = await Users.findAll({ attributes: ['id', 'ho_ten', 'email', 'vai_tro', 'trang_thai'] });
+    res.json(users.map(u => ({
+      id: u.id,
+      ho_ten: u.ho_ten,
+      email: u.email,
+      vai_tro: u.vai_tro,
+      trang_thai: u.trang_thai || 'active',
+    })));
+  } catch (e) {
+    console.error(e);
+    res.status(500).json([]);
+  }
+});
+
+app.put('/api/admin/users/:id/role', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { vai_tro } = req.body;
+    await Users.update({ vai_tro }, { where: { id } });
+    const user = await Users.findByPk(id, { attributes: ['id', 'ho_ten', 'email', 'vai_tro', 'trang_thai'] });
+    res.json(user);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({});
+  }
+});
+
+app.put('/api/admin/users/:id/status', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { trang_thai } = req.body;
+    await Users.update({ trang_thai }, { where: { id } });
+    const user = await Users.findByPk(id, { attributes: ['id', 'ho_ten', 'email', 'vai_tro', 'trang_thai'] });
+    res.json(user);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({});
+  }
+});
+
+// -------------------- Admin settings (file-backed) --------------------
+app.get('/api/admin/settings', requireAdmin, (req, res) => {
+  const data = readJson('settings.json', null);
+  res.json(data || {});
+});
+
+app.put('/api/admin/settings', requireAdmin, (req, res) => {
+  const body = req.body || {};
+  writeJson('settings.json', body);
+  res.json(body);
+});
+
+// -------------------- Admin orders (file-backed) --------------------
+app.get('/api/admin/orders', requireAdmin, (req, res) => {
+  const list = readJson('orders.json', []);
+  res.json(list);
+});
+
+app.put('/api/admin/orders/:id/status', requireAdmin, (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+  const list = readJson('orders.json', []);
+  const idx = list.findIndex(o => String(o.id) === String(id));
+  if (idx === -1) return res.status(404).json({ message: 'Order not found' });
+  list[idx].status = status;
+  writeJson('orders.json', list);
+  res.json(list[idx]);
+});
+
+// -------------------- Admin stats (computed from orders file) --------------------
+app.get('/api/admin/stats', requireAdmin, (req, res) => {
+  const { from, to } = req.query;
+  const orders = readJson('orders.json', []);
+  const inRange = orders.filter(o => {
+    if (!from || !to) return true;
+    const d = new Date(o.createdAt).toISOString().slice(0,10);
+    return d >= from && d <= to;
+  });
+  const revenueTotal = inRange.reduce((s, o) => s + (Number(o.total) || 0), 0);
+  const ordersTotal = inRange.length;
+  const ordersByStatus = {};
+  const salesByDate = {};
+  for (const o of inRange) {
+    ordersByStatus[o.status] = (ordersByStatus[o.status] || 0) + 1;
+    const d = new Date(o.createdAt).toISOString().slice(0,10);
+    salesByDate[d] = (salesByDate[d] || 0) + (Number(o.total) || 0);
+  }
+  const salesArr = Object.entries(salesByDate).map(([date, total]) => ({ date, total })).sort((a,b)=>a.date.localeCompare(b.date));
+  res.json({ revenueTotal, ordersTotal, ordersByStatus, topProducts: [], salesByDate: salesArr });
 });
