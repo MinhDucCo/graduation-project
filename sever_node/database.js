@@ -124,7 +124,7 @@ const LienHeModel = sequelize.define("lien_he", {
 const Users = sequelize.define("users", {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
   email: { type: DataTypes.STRING, allowNull: false, unique: true },
-  mat_khau: { type: DataTypes.STRING, allowNull: false },
+  mat_khau: { type: DataTypes.STRING, allowNull: true },
   ho_ten: { type: DataTypes.STRING },
   dia_chi: { type: DataTypes.STRING },
   dien_thoai: { type: DataTypes.STRING },
@@ -147,53 +147,45 @@ const Users = sequelize.define("users", {
   timestamps: false,
 });
 
+// models/don_hang.js
 const DonHangModel = sequelize.define("don_hang", {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
   ngay_dat: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
-  ho_ten: { type: DataTypes.STRING(100), allowNull: false },
-  status: { type: DataTypes.STRING(50), defaultValue: "Chờ xác nhận" },
-  ghi_chu: { type: DataTypes.TEXT, allowNull: true },
-  ngay_giao: { type: DataTypes.DATE, allowNull: true },
+  
+  // ho_ten: { type: DataTypes.STRING(100), allowNull: false },
+
+  ten_nguoi_nhan: { type: DataTypes.STRING(100), allowNull: false }, // GIỮ LẠI
   dia_chi: { type: DataTypes.STRING(255), allowNull: false },
-  ten_nguoi_nhan: { type: DataTypes.STRING(100), allowNull: false },
-  id_user: {
-    type: DataTypes.INTEGER,
-    allowNull: true,
-    references: {
-      model: "users",
-      key: "id",
-    },
-    onDelete: "SET NULL",
-    onUpdate: "CASCADE",
-  },
   dien_thoai: { type: DataTypes.STRING(20), allowNull: false },
+  ghi_chu: { type: DataTypes.TEXT, allowNull: true },
+  status: { type: DataTypes.STRING(50), defaultValue: "Chờ xác nhận" },
+  phuong_thuc: { type: DataTypes.STRING(20), defaultValue: "cod" },
+  id_user: { type: DataTypes.INTEGER, allowNull: true, references: { model: "users", key: "id" } },
 }, {
   timestamps: false,
   tableName: "don_hang",
 });
-const ChiTietDonHangModel = sequelize.define("chi_tiet_don_hang", {
+const ChiTietDonHangModel = sequelize.define("don_hang_chi_tiet", {
   id_chi_tiet: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
   id_don_hang: {
     type: DataTypes.INTEGER,
     allowNull: false,
     references: { model: "don_hang", key: "id" },
-    onDelete: "CASCADE", //Nếu id trong bảng don_hang bị thay đổi (cập nhật sang giá trị khác),
-    onUpdate: "CASCADE",// thì các bản ghi liên quan trong bảng chi_tiet_don_hang cũng sẽ bị thay đổi tương ứng.
+    onDelete: "CASCADE",
   },
   id_san_pham: {
     type: DataTypes.INTEGER,
     allowNull: false,
-    references: { model: "phu_tung_xe", key: "id" },
+    references: { model: "phu_tung_xe", key: "ma_san_pham" }, // DÙNG ma_san_pham
     onDelete: "CASCADE",
-    onUpdate: "CASCADE",
   },
   so_luong: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 1 },
+  gia: { type: DataTypes.DECIMAL(10, 0), allowNull: true },
   danh_gia: { type: DataTypes.TEXT, allowNull: true },
   sao: { type: DataTypes.INTEGER, allowNull: true },
-  gia: { type: DataTypes.DECIMAL(10, 0), allowNull: true },
 }, {
   timestamps: false,
-  tableName: "chi_tiet_don_hang",
+  tableName: "don_hang_chi_tiet",
 });
 
 

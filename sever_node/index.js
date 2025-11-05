@@ -7,10 +7,19 @@ const helmet = require("helmet");
 const bcrypt = require("bcrypt");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
-const crypto = require("crypto");
+const crypto = require('crypto');
 const nodemailer = require("nodemailer");
 const { Op } = require("sequelize");
 const session = require("express-session");
+const router = express.Router();
+const querystring = require("querystring"); // ✅ thêm dòng này
+const qs = require("qs");
+
+const moment = require("moment");
+
+
+
+
 const { sendVerificationEmail } = require("./utils/sendEmail.js");
 const {
   sequelize,
@@ -348,26 +357,22 @@ app.get('/api/timkiem/:tu_khoa/count', async (req, res) => {
 });
 
 
-
-
-
-
 app.get("/api/cart", async (req, res) => {
   const { id_user } = req.query;
-  console.log("📥 API GET /api/cart - id_user:", id_user);
+  const userId = id_user || 10; // Mặc định là khách
 
   try {
-    if (id_user) {
-      const cart = await GioHangModel.findAll({ where: { id_user } });
-      console.log("✅ Dữ liệu giỏ hàng từ DB:", JSON.stringify(cart, null, 2)); // 👈 In rõ
-      return res.json(cart.map(c => c.toJSON())); // ép về plain object
-    } else {
-      console.log("🧾 Giỏ hàng session:", req.session.cart);
-      return res.json(req.session.cart || []);
-    }
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Không thể lấy giỏ hàng" });
+    console.log("📥 API GET /api/cart - id_user:", userId);
+
+    const gioHang = await GioHangModel.findAll({
+      where: { id_user: userId },
+    });
+
+    console.log("✅ Dữ liệu giỏ hàng từ DB:", gioHang);
+    res.json(gioHang);
+  } catch (error) {
+    console.error("❌ Lỗi lấy giỏ hàng:", error);
+    res.status(500).json({ message: "Lỗi server khi lấy giỏ hàng" });
   }
 });
 
@@ -376,7 +381,7 @@ app.get("/api/cart", async (req, res) => {
 // 🛒 API thêm sản phẩm vào giỏ hàng
 app.post("/api/cart/add", async (req, res) => {
   const { ten_san_pham, gia, id_user, id_san_pham, so_luong, hinh, mau_sac } = req.body;
-
+  
   // Nếu chưa có session giỏ hàng thì tạo mảng trống
   if (!req.session.cart) {
     req.session.cart = [];
@@ -453,6 +458,26 @@ app.delete("/api/cart/delete/:id", async (req, res) => {
   }
 });
 
+// ✅ XÓA TOÀN BỘ GIỎ HÀNG CỦA 1 USER (sau khi đặt hàng)
+app.delete("/api/cart", async (req, res) => {
+  const { id_user } = req.query;
+
+  if (!id_user) {
+    return res.status(400).json({ success: false, message: "Thiếu id_user" });
+  }
+
+  try {
+    const deleted = await GioHangModel.destroy({ where: { id_user } });
+    if (deleted === 0) {
+      return res.json({ success: false, message: "Không có sản phẩm nào trong giỏ hàng của user này" });
+    }
+
+    res.json({ success: true, message: "Đã xóa toàn bộ giỏ hàng của người dùng" });
+  } catch (err) {
+    console.error("❌ Lỗi khi xóa giỏ hàng:", err);
+    res.status(500).json({ success: false, message: "Lỗi server khi xóa giỏ hàng", error: err.message });
+  }
+});
 
 // Cập nhật số lượng sản phẩm trong giỏ và kiểm tra tồn kho
 app.put("/api/cart/update/:id", async (req, res) => {
@@ -493,11 +518,6 @@ app.put("/api/cart/update/:id", async (req, res) => {
     res.status(500).json({ error: "Cập nhật số lượng thất bại" });
   }
 });
-
-
-
-
-
 // API đăng nhập
 app.post("/api/auth/login", async (req, res) => {
   const { email, mat_khau } = req.body;
@@ -507,14 +527,14 @@ app.post("/api/auth/login", async (req, res) => {
   }
 
   try {
-    // 🔍 Tìm user trong DB
+    // Tìm user trong DB
     const user = await Users.findOne({ where: { email } });
 
     if (!user) {
       return res.status(400).json({ message: "Email không tồn tại!" });
     }
 
-    // 🧩 Kiểm tra mật khẩu (bcrypt hoặc plain text)
+    // Kiểm tra mật khẩu (bcrypt hoặc plain text)
     let match = false;
     if (user.mat_khau.startsWith("$2b$")) {
       match = await bcrypt.compare(mat_khau, user.mat_khau);
@@ -526,7 +546,7 @@ app.post("/api/auth/login", async (req, res) => {
       return res.status(400).json({ message: "Sai mật khẩu!" });
     }
 
-    // 📦 Lưu thông tin user vào session
+    // Lưu thông tin user vào session
     req.session.user = {
       id: user.id,
       email: user.email,
@@ -534,14 +554,13 @@ app.post("/api/auth/login", async (req, res) => {
       vai_tro: user.vai_tro,
     };
 
-    console.log("✅ Session user sau khi đăng nhập:", req.session.user);
+    console.log("Session user sau khi đăng nhập:", req.session.user);
 
-    // 🧩 GỘP GIỎ HÀNG SESSION VÀO DATABASE
+    // GỘP GIỎ HÀNG SESSION VÀO DATABASE
     if (req.session.cart && req.session.cart.length > 0) {
-      console.log("🛒 Gộp giỏ hàng session vào DB cho user:", user.id);
+      console.log("Gộp giỏ hàng session vào DB cho user:", user.id);
 
       for (const item of req.session.cart) {
-        // Kiểm tra xem sản phẩm này đã có trong DB chưa
         const existing = await GioHangModel.findOne({
           where: {
             id_user: user.id,
@@ -551,12 +570,10 @@ app.post("/api/auth/login", async (req, res) => {
         });
 
         if (existing) {
-          // Nếu có rồi → cộng dồn số lượng
           await existing.update({
             so_luong: existing.so_luong + item.so_luong,
           });
         } else {
-          // Nếu chưa có → thêm mới vào DB
           await GioHangModel.create({
             ten_san_pham: item.ten_san_pham,
             gia: item.gia,
@@ -570,12 +587,11 @@ app.post("/api/auth/login", async (req, res) => {
         }
       }
 
-      // ✅ Sau khi gộp xong thì xóa session giỏ hàng tạm
       req.session.cart = [];
-      console.log("🧹 Đã xóa giỏ hàng session sau khi gộp!");
+      console.log("Đã xóa giỏ hàng session sau khi gộp!");
     }
 
-    // ✅ Trả về dữ liệu user cho frontend
+    // TRẢ VỀ ĐẦY ĐỦ THÔNG TIN CHO FRONTEND
     return res.json({
       message: "Đăng nhập thành công!",
       user: {
@@ -583,11 +599,13 @@ app.post("/api/auth/login", async (req, res) => {
         email: user.email,
         ho_ten: user.ho_ten,
         vai_tro: user.vai_tro,
+        dien_thoai: user.dien_thoai,   
+        dia_chi: user.dia_chi,      
       },
     });
 
   } catch (err) {
-    console.error("🔥 Lỗi đăng nhập:", err);
+    console.error("Lỗi đăng nhập:", err);
     return res.status(500).json({ message: "Lỗi server!" });
   }
 });
@@ -757,58 +775,137 @@ app.post("/api/auth/reset-password", async (req, res) => {
   }
 });
 
-// 🟢 API đặt hàng
-app.post("/api/donhang", async (req, res) => {
+// API: Cập nhật thông tin cá nhân (chỉ ho_ten, dia_chi, dien_thoai)
+app.put('/api/users/profile', async (req, res) => {
   try {
-    const { ho_ten, dia_chi, dien_thoai, ghi_chu, id_user, items } = req.body;
+    const { userId, ho_ten, dia_chi, dien_thoai } = req.body;
 
-    // Kiểm tra dữ liệu đầu vào
-    if (!ho_ten || !dia_chi || !dien_thoai || !items?.length) {
-      return res.status(400).json({ error: "Thiếu thông tin đặt hàng!" });
+    if (!userId) {
+      return res.status(400).json({ message: 'Thiếu userId' });
     }
 
-    // 🟢 Tạo đơn hàng
+    const user = await Users.findByPk(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'Không tìm thấy người dùng' });
+    }
+
+    // Cập nhật
+    await user.update({
+      ho_ten: ho_ten ?? user.ho_ten,
+      dia_chi: dia_chi ?? user.dia_chi,
+      dien_thoai: dien_thoai ?? user.dien_thoai,
+    });
+
+    // TRẢ VỀ ĐẦY ĐỦ CÁC TRƯỜNG CẦN
+    const updatedUser = await Users.findByPk(userId, {
+      attributes: [
+        'id',
+        'email',
+        'ho_ten',
+        'dia_chi',
+        'dien_thoai',
+        'vai_tro',
+      ],
+    });
+
+    res.json({
+      message: 'Cập nhật thành công',
+      user: updatedUser,   // ← quan trọng!
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Lỗi server' });
+  }
+});
+
+// API Đặt hàng
+app.post("/api/donhang", async (req, res) => {
+  const {
+    ho_ten,
+    dia_chi,
+    ten_nguoi_nhan,
+    dien_thoai,
+    ghi_chu,
+    id_user,
+    san_pham,
+    phuong_thuc,
+  } = req.body;
+
+  if (
+    !ho_ten ||
+    !dia_chi ||
+    !ten_nguoi_nhan ||
+    !dien_thoai ||
+    !san_pham ||
+    san_pham.length === 0
+  ) {
+    return res.status(400).json({ message: "Thiếu thông tin bắt buộc!" });
+  }
+
+  try {
+    // ✅ Nếu không có id_user (người chưa đăng nhập) => mặc định dùng user khách id = 10
+    const finalUserId = id_user || 10;
+
+    // 1️⃣ Tạo đơn hàng
     const donHang = await DonHangModel.create({
-      ngay_dat: new Date(),
       ho_ten,
       dia_chi,
+      ten_nguoi_nhan,
       dien_thoai,
-      ghi_chu,
-      id_user,
-      status: "Đang xử lý",
+      ghi_chu: ghi_chu || null,
+      id_user: finalUserId,
+      status: phuong_thuc === "online" ? "Chờ thanh toán" : "Chờ xác nhận",
+      phuong_thuc: phuong_thuc || "cod",
     });
 
-    // 🟢 Thêm chi tiết đơn hàng
-    await Promise.all(
-      items.map((sp) =>
-        ChiTietDonHangModel.create({
-          id_don_hang: donHang.id_don_hang, // nhớ khớp với model DB
-          id_san_pham: sp.id_san_pham,
-          so_luong: sp.so_luong,
-          gia: sp.gia,
-        })
-      )
+    // 2️⃣ Tạo chi tiết đơn hàng
+    const chiTietData = san_pham.map((item) => ({
+      id_don_hang: donHang.id,
+      id_san_pham: item.id_san_pham,
+      so_luong: item.so_luong,
+      gia: item.gia,
+    }));
+
+    await ChiTietDonHangModel.bulkCreate(chiTietData);
+
+    // 3️⃣ Xóa giỏ hàng của user sau khi đặt hàng
+    await GioHangModel.destroy({
+      where: { id_user: finalUserId },
+    });
+
+    // 4️⃣ Tính tổng tiền & trả về kết quả
+    const tong_tien = chiTietData.reduce(
+      (sum, item) => sum + item.gia * item.so_luong,
+      0
     );
 
-    res.json({ success: true, message: "Đặt hàng thành công!", donHang });
-  } catch (err) {
-    console.error("❌ Lỗi khi tạo đơn hàng:", err);
-    res.status(500).json({ error: "Lỗi server khi tạo đơn hàng!" });
-  }
-});
-// 🟢 API lấy danh sách đơn hàng
-app.get("/api/donhang", async (req, res) => {
-  try {
-    const donHangs = await DonHangModel.findAll({
-      include: [ChiTietDonHangModel], // Lấy cả chi tiết đơn hàng
-      order: [["ngay_dat", "DESC"]],
+    res.status(201).json({
+      message: "Đặt hàng thành công! Giỏ hàng đã được làm trống.",
+      don_hang_id: donHang.id,
+      tong_tien,
+      phuong_thuc,
     });
-    res.json(donHangs);
-  } catch (err) {
-    console.error("Lỗi lấy danh sách đơn hàng:", err);
-    res.status(500).json({ error: "Không lấy được danh sách đơn hàng!" });
+  } catch (error) {
+    console.error("❌ Lỗi đặt hàng:", error);
+    res
+      .status(500)
+      .json({ message: "Lỗi server khi đặt hàng", error: error.message });
   }
 });
+
+// 🟢 API lấy danh sách đơn hàng
+// app.get("/api/donhang", async (req, res) => {
+//   try {
+//     const donHangs = await DonHangModel.findAll({
+//       include: [ChiTietDonHangModel], // Lấy cả chi tiết đơn hàng
+//       order: [["ngay_dat", "DESC"]],
+//     });
+//     res.json(donHangs);
+//   } catch (err) {
+//     console.error("Lỗi lấy danh sách đơn hàng:", err);
+//     res.status(500).json({ error: "Không lấy được danh sách đơn hàng!" });
+//   }
+// });
 // 🟢 API lấy chi tiết 1 đơn hàng
 app.get("/api/donhang/:id", async (req, res) => {
   try {
@@ -827,7 +924,118 @@ app.get("/api/donhang/:id", async (req, res) => {
   }
 });
 
+// api/orders/create.js
+app.post("/api/orders/create", async (req, res) => {
+  const { ten_nguoi_nhan, dia_chi, dien_thoai, ghi_chu, id_user, items, phuong_thuc } = req.body;
 
+  // BẮT BUỘC: ten_nguoi_nhan, dia_chi, dien_thoai, items
+  if (!ten_nguoi_nhan || !dia_chi || !dien_thoai || !items || !Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ error: "Thiếu thông tin bắt buộc!" });
+  }
+
+  try {
+    const tong_tien = items.reduce((sum, item) => sum + item.gia * item.so_luong, 0);
+
+    const donHang = await DonHangModel.create({
+      ten_nguoi_nhan,    // CHỈ DÙNG CÁI NÀY
+      dia_chi,
+      dien_thoai,
+      ghi_chu: ghi_chu || null,
+      id_user: id_user || null,
+      status: phuong_thuc === "online" ? "Chờ thanh toán" : "Chờ xác nhận",
+      phuong_thuc: phuong_thuc || "cod",
+    });
+
+   const chiTietData = items.map(item => ({
+  id_don_hang: donHang.id,
+  id_san_pham: item.id_san_pham, // item.id_san_pham = ma_san_pham
+  so_luong: item.so_luong || 1,
+  gia: Math.round(item.gia),
+}));
+
+    await ChiTietDonHangModel.bulkCreate(chiTietData);
+
+    res.status(201).json({
+      success: true,
+      don_hang_id: donHang.id,
+      tong_tien,
+    });
+  } catch (error) {
+    console.error("LỖI ĐẶT HÀNG:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// routes/orders.js
+router.post('/update-status', async (req, res) => {
+  const { id, status } = req.body;
+  try {
+    await DonHangModel.update({ status }, { where: { id } });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+// API: Tạo URL thanh toán VNPay (ẢO)
+app.post("/api/vnpay/create_payment", (req, res) => {
+  const { don_hang_id, tong_tien } = req.body;
+  console.log("📦 [VNPay] Nhận yêu cầu tạo thanh toán:", { don_hang_id, tong_tien });
+
+  const vnp_TmnCode = "2QXUI4J4"; // Mã website của bạn
+  const vnp_HashSecret = "SECRET_KEY_CỦA_BẠN"; // Lấy trong trang sandbox
+  const vnp_Url = "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html";
+  const vnp_ReturnUrl = `http://localhost:3000/thanh-toan/ket-qua?don_hang_id=${don_hang_id}`;
+
+  const date = new Date();
+  const createDate = moment(date).format("YYYYMMDDHHmmss");
+  const orderId = don_hang_id.toString();
+
+  let vnp_Params = {};
+  vnp_Params["vnp_Version"] = "2.1.0";
+  vnp_Params["vnp_Command"] = "pay";
+  vnp_Params["vnp_TmnCode"] = vnp_TmnCode;
+  vnp_Params["vnp_Locale"] = "vn";
+  vnp_Params["vnp_CurrCode"] = "VND";
+  vnp_Params["vnp_TxnRef"] = orderId;
+  vnp_Params["vnp_OrderInfo"] = `Thanh toan don hang ${orderId}`;
+  vnp_Params["vnp_OrderType"] = "other";
+  vnp_Params["vnp_Amount"] = tong_tien * 100;
+  vnp_Params["vnp_ReturnUrl"] = vnp_ReturnUrl;
+  vnp_Params["vnp_IpAddr"] = req.ip || "127.0.0.1";
+  vnp_Params["vnp_CreateDate"] = createDate;
+
+  // Sắp xếp key theo ASCII
+  vnp_Params = Object.fromEntries(Object.entries(vnp_Params).sort());
+
+  const signData = qs.stringify(vnp_Params, { encode: false });
+  const hmac = crypto.createHmac("sha512", vnp_HashSecret);
+  const signed = hmac.update(Buffer.from(signData, "utf-8")).digest("hex");
+  vnp_Params["vnp_SecureHash"] = signed;
+
+  const paymentUrl = `${vnp_Url}?${qs.stringify(vnp_Params, { encode: false })}`;
+
+  console.log("🌐 [VNPay] URL thanh toán:", paymentUrl);
+  return res.json({ paymentUrl });
+});
+
+
+app.post("/api/cart/add", async (req, res) => {
+  const { id_user, id_san_pham, so_luong } = req.body;
+
+  try {
+    await GioHangModel.create({
+      id_user,
+      id_san_pham,
+      so_luong,
+    });
+    res.json({ success: true, message: "Đã thêm vào giỏ hàng!" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Thêm vào giỏ hàng thất bại" });
+  }
+});
 
 
 app.listen(port, () => {

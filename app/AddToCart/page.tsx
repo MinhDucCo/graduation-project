@@ -5,38 +5,64 @@ export default function AddToCart() {
   const [cart, setCart] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+
+// ✅ Hàm thêm giỏ hàng
+const handleAddToCart = async (productId: number, quantity: number) => {
+  const user = JSON.parse(localStorage.getItem("user") || "null");
+  // Nếu chưa đăng nhập => mặc định dùng user id = 10
+  const id_user = user ? user.id : 10;
+  await fetch("http://localhost:3000/api/cart/add", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      id_user,
+      id_san_pham: productId,
+      so_luong: quantity,
+    }),
+  });
+};
+
+  
+
+
   // 🛒 Fetch giỏ hàng: DB nếu login, sessionStorage nếu chưa login
   const fetchCart = async () => {
-    setLoading(true);
-    try {
-      const user = typeof window !== "undefined"
-        ? JSON.parse(localStorage.getItem("user") || "null")
-        : null;
+  setLoading(true);
+  try {
+    const user = typeof window !== "undefined"
+      ? JSON.parse(localStorage.getItem("user") || "null")
+      : null;
 
-      let data: any[] = [];
-
-      if (user) {
-        // Đã đăng nhập → fetch DB
-        const res = await fetch(`http://localhost:3000/api/cart?id_user=${user.id}`, {
-          credentials: "include",
-        });
-        data = await res.json();
-      } else {
-        // Chưa đăng nhập → lấy sessionStorage
-        const sessionCart = typeof window !== "undefined"
-          ? JSON.parse(sessionStorage.getItem("cart") || "[]")
-          : [];
-        data = sessionCart;
-      }
-
+    // Nếu có user đăng nhập → lấy giỏ hàng DB theo user.id
+    if (user && user.id) {
+      const res = await fetch(`http://localhost:3000/api/cart?id_user=${user.id}`);
+      const data = await res.json();
       setCart(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.error("🚨 Lỗi tải giỏ hàng:", err);
-      setCart([]);
-    } finally {
-      setLoading(false);
+    } 
+    else {
+      // Nếu chưa đăng nhập → dùng id_user mặc định = 10
+      const res = await fetch(`http://localhost:3000/api/cart?id_user=10`);
+      const data = await res.json();
+
+      // Nếu DB của khách trống, thử lấy sessionStorage (nếu có)
+      if (Array.isArray(data) && data.length > 0) {
+        setCart(data);
+      } else {
+        const sessionCart =
+          typeof window !== "undefined"
+            ? JSON.parse(sessionStorage.getItem("cart") || "[]")
+            : [];
+        setCart(sessionCart);
+      }
     }
-  };
+  } catch (err) {
+    console.error("🚨 Lỗi tải giỏ hàng:", err);
+    setCart([]);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   useEffect(() => {
     fetchCart();
@@ -76,7 +102,6 @@ const handleDelete = async (id: number) => {
     console.error(err);
   }
 };
-
   // Chỉnh số lượng
   const handleQuantityChange = async (id: number, newQty: number) => {
   if (newQty < 1) return;
