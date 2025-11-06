@@ -4,27 +4,6 @@ import Link from "next/link";
 export default function AddToCart() {
   const [cart, setCart] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-
-
-// ✅ Hàm thêm giỏ hàng
-const handleAddToCart = async (productId: number, quantity: number) => {
-  const user = JSON.parse(localStorage.getItem("user") || "null");
-  // Nếu chưa đăng nhập => mặc định dùng user id = 10
-  const id_user = user ? user.id : 10;
-  await fetch("http://localhost:3000/api/cart/add", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      id_user,
-      id_san_pham: productId,
-      so_luong: quantity,
-    }),
-  });
-};
-
-  
-
-
   // 🛒 Fetch giỏ hàng: DB nếu login, sessionStorage nếu chưa login
   const fetchCart = async () => {
   setLoading(true);
@@ -69,7 +48,26 @@ const handleAddToCart = async (productId: number, quantity: number) => {
   }, []);
 
   if (loading) return <p>Đang tải giỏ hàng...</p>;
-  if (cart.length === 0) return <h1>🛒 Giỏ hàng trống</h1>;
+  if (cart.length === 0)
+  return (
+    <div className="flex flex-col items-center justify-center py-20 text-center">
+      <span className="text-5xl mb-4">🛒</span>
+      <h1 className="text-3xl font-extrabold text-gray-800 mb-3">
+        Giỏ hàng trống
+      </h1>
+      <p className="text-gray-500 text-lg mb-6">
+        Hãy thêm sản phẩm yêu thích vào giỏ nhé!
+      </p>
+      
+      <a
+        href="/"
+        className="px-6 py-3 bg-blue-600 text-white rounded-xl shadow hover:bg-blue-700 transition duration-200"
+      >
+        Tiếp tục mua sắm
+      </a>
+    </div>
+  );
+
 
   const tongTien = cart.reduce(
     (sum, item) => sum + (Number(item.gia) || 0) * (Number(item.so_luong) || 0),
@@ -79,29 +77,24 @@ const handleAddToCart = async (productId: number, quantity: number) => {
   // Xóa sản phẩm
 const handleDelete = async (id: number) => {
   try {
-    const user = typeof window !== "undefined"
-      ? JSON.parse(localStorage.getItem("user") || "null")
-      : null;
+    const res = await fetch(`http://localhost:3000/api/cart/delete/${id}`, {
+      method: "DELETE",
+    });
 
-    if (user) {
-      // Xóa DB
-      const res = await fetch(`http://localhost:3000/api/cart/delete/${id}`, {
-        method: "DELETE",
-      });
-      if (res.ok) {
-        setCart((prev) => prev.filter((item) => (item.id || item.id_san_pham) !== id));
-      }
+    if (res.ok) {
+      // ✅ Cập nhật UI
+      setCart((prev) => prev.filter((item) => item.id !== id));
+
+      // ✅ Thông báo cập nhật giỏ lên header
+      window.dispatchEvent(new Event("cart-updated"));
     } else {
-      // Xóa sessionStorage
-      const sessionCart = JSON.parse(sessionStorage.getItem("cart") || "[]");
-      const newCart = sessionCart.filter((item: any) => item.id_san_pham !== id);
-      sessionStorage.setItem("cart", JSON.stringify(newCart));
-      setCart(newCart);
+      console.log("❌ Xóa thất bại");
     }
   } catch (err) {
-    console.error(err);
+    console.error("🚨 Lỗi khi xóa:", err);
   }
 };
+
   // Chỉnh số lượng
   const handleQuantityChange = async (id: number, newQty: number) => {
   if (newQty < 1) return;

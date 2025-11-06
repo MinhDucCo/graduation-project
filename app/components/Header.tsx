@@ -64,8 +64,8 @@ export default function Header() {
     fetchCart();
     // lắng nghe thay đổi cart từ sessionStorage
     const handleStorageChange = () => fetchCart();
-    window.addEventListener("storage", handleStorageChange);
-    return () => window.removeEventListener("storage", handleStorageChange);
+    window.addEventListener("cart-updated", fetchCart);
+    return () => window.removeEventListener("cart-updated", handleStorageChange);
   }, []);
 
   return (
@@ -138,7 +138,7 @@ export default function Header() {
           )}
 
           {/* Icon giỏ hàng */}
-          <div
+          <div id="cart-icon"
             className="relative cursor-pointer"
             onClick={() => router.push("/AddToCart")}
           >

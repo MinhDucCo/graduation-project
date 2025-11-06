@@ -10,16 +10,13 @@ export default function LoginPage() {
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
   e.preventDefault();
   setLoading(true);
-
   try {
     const res = await fetch("http://localhost:3000/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, mat_khau: matKhau }),
     });
-
     console.log("[Login] response status:", res.status, res.statusText);
-
     let data: any;
     try {
       data = await res.json();
@@ -29,7 +26,6 @@ export default function LoginPage() {
     }
 
     console.log("[Login] response body:", data);
-
     if (!res.ok) {
       alert(`❌ ${data.message || `Lỗi (${res.status})`}`);
       return;
@@ -84,9 +80,6 @@ export default function LoginPage() {
     setLoading(false);
   }
 };
-
-
-
   return (
     <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-blue-200 via-white to-blue-300 px-4">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-8 transform transition-all duration-300 hover:scale-[1.02]">

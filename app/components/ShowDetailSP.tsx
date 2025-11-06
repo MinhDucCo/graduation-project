@@ -7,18 +7,52 @@ export default function ShowDetailSP({ sp }: { sp: ISanPham }) {
   const [selectedVariant, setSelectedVariant] = useState<IBienThe | undefined>(
     sp.bien_the_san_phams?.[0]
   );
-
+  
   const router = useRouter();
+  
+  
+  // ✅ Hàm hiệu ứng bay vào giỏ hàng
+ const animateToCart = () => {
+  const img = document.getElementById("product-image") as HTMLImageElement | null;
+  const cart = document.getElementById("cart-icon") as HTMLElement | null;
+
+  if (!img || !cart) return;
+
+  const imgRect = img.getBoundingClientRect();
+  const cartRect = cart.getBoundingClientRect();
+
+  const flyImg = img.cloneNode(true) as HTMLImageElement;
+  flyImg.style.position = "fixed";
+  flyImg.style.left = imgRect.left + "px";
+  flyImg.style.top = imgRect.top + "px";
+  flyImg.style.width = imgRect.width + "px";
+  flyImg.style.height = imgRect.height + "px";
+  flyImg.style.transition = "all 0.8s ease-in-out";
+  flyImg.style.zIndex = "9999";
+
+  document.body.appendChild(flyImg);
+
+  setTimeout(() => {
+    flyImg.style.left = cartRect.left + "px";
+    flyImg.style.top = cartRect.top + "px";
+    flyImg.style.width = "40px";
+    flyImg.style.height = "40px";
+    flyImg.style.opacity = "0.3";
+  }, 50);
+
+  setTimeout(() => flyImg.remove(), 900);
+};
+
 
   const hinhPhu = [
     selectedVariant?.hinh ||
-      "https://via.placeholder.com/400x300?text=Hinh+Chinh",
+    "https://via.placeholder.com/400x300?text=Hinh+Chinh",
     selectedVariant?.hinh_phu1 ||
-      "https://placehold.co/400x300?text=Hinh+Phu+1",
+    "https://placehold.co/400x300?text=Hinh+Phu+1",
     selectedVariant?.hinh_phu2 ||
-      "https://placehold.co/400x300?text=Hinh+Phu+2",
+    "https://placehold.co/400x300?text=Hinh+Phu+2",
     selectedVariant?.hinh_phu3 ||
-      "https://placehold.co/400x300?text=Hinh+Phu+3",
+    "https://placehold.co/400x300?text=Hinh+Phu+3",
   ];
 
   const [hinhChinh, setHinhChinh] = useState<string>(hinhPhu[0]);
@@ -67,7 +101,9 @@ export default function ShowDetailSP({ sp }: { sp: ISanPham }) {
   }, []);
 
   // 🛒 Thêm vào giỏ hàng
-  const handleAddToCart = async () => {
+ const handleAddToCart = async () => {
+  animateToCart(); // Hiệu ứng bay ảnh vào giỏ hàng
+
   if (!selectedVariant) {
     alert("Vui lòng chọn màu sắc sản phẩm!");
     return;
@@ -81,41 +117,14 @@ export default function ShowDetailSP({ sp }: { sp: ISanPham }) {
   const newItem = {
     ten_san_pham: sp.ten_san_pham,
     gia: selectedVariant.gia,
-    id_user: user ? user.id : null,
+    id_user: user ? user.id : 10, // ✅ Nếu chưa login → lưu mặc định cho user ID 10
     id_san_pham: sp.ma_san_pham,
     so_luong: 1,
     hinh: selectedVariant.hinh,
     mau_sac: selectedVariant.mau_sac,
   };
 
-  // Nếu chưa đăng nhập → Lưu tạm trong sessionStorage
-  if (!user) {
-    let cart = [];
-    if (typeof window !== "undefined") {
-      try {
-        cart = JSON.parse(sessionStorage.getItem("cart") || "[]");
-      } catch {
-        cart = [];
-      }
-    }
-
-    // Kiểm tra trùng sản phẩm (nếu có thì cộng thêm số lượng)
-    const index = cart.findIndex(
-  (item: { id_san_pham: number; mau_sac: string }) =>
-    item.id_san_pham === newItem.id_san_pham && item.mau_sac === newItem.mau_sac
-);
-    if (index !== -1) {
-      cart[index].so_luong += 1;
-    } else {
-      cart.push(newItem);
-    }
-
-    sessionStorage.setItem("cart", JSON.stringify(cart));
-    alert("🛒 Đã thêm sản phẩm vào giỏ hàng tạm!");
-    return;
-  }
-
-  // Nếu đã đăng nhập → Gửi API như bình thường
+  // ✅ Luôn gửi vào DB (dù có đăng nhập hay không)
   try {
     const res = await fetch("http://localhost:3000/api/cart/add", {
       method: "POST",
@@ -125,43 +134,44 @@ export default function ShowDetailSP({ sp }: { sp: ISanPham }) {
 
     const result = await res.json();
 
-    if (res.ok) {
-      alert("✅ Đã thêm sản phẩm vào giỏ hàng!");
-    } else {
+    if (!res.ok) {
       alert("❌ Thêm thất bại: " + result.message);
+      return;
     }
-  } catch (error) {
-    console.error("🚨 Lỗi khi thêm giỏ hàng:", error);
+
+    // ✅ Cập nhật Header không cần reload
+    window.dispatchEvent(new Event("cart-updated"));
+
+  } catch (err) {
+    console.error("🚨 Lỗi khi thêm giỏ hàng:", err);
     alert("Không thể thêm vào giỏ hàng!");
   }
-};
-
-
+};      
   return (
     <div className="max-w-6xl mx-auto my-10 p-6 bg-white shadow-xl rounded-2xl">
       <div className="flex flex-col md:flex-row gap-8">
         {/* Ảnh sản phẩm */}
         <div className="md:w-1/2">
           <img
-            src={hinhChinh}
-            alt={sp.ten_san_pham}
-            className="w-full h-[400px] object-cover rounded-lg shadow-md"
-          />
+  id="product-image"
+  src={hinhChinh}
+  alt={sp.ten_san_pham}
+  className="w-full h-[400px] object-cover rounded-lg shadow-md"
+/>
           <div className="flex gap-4 mt-4">
             {hinhPhu.map((hinh, index) => (
               <img
                 key={index}
                 src={hinh}
                 alt={`Hình phụ ${index + 1}`}
-                className={`w-24 h-24 object-cover rounded-md cursor-pointer border-2 transition ${
-                  hinhChinh === hinh
+                className={`w-24 h-24 object-cover rounded-md cursor-pointer border-2 transition ${hinhChinh === hinh
                     ? "border-blue-600"
                     : "border-gray-200 hover:border-gray-400"
-                }`}
+                  }`}
                 onClick={() => setHinhChinh(hinh)}
                 onError={(e) =>
-                  (e.currentTarget.src =
-                    "https://via.placeholder.com/400x300?text=Loi+Tai+Hinh+Phu")
+                (e.currentTarget.src =
+                  "https://via.placeholder.com/400x300?text=Loi+Tai+Hinh+Phu")
                 }
               />
             ))}
@@ -188,11 +198,10 @@ export default function ShowDetailSP({ sp }: { sp: ISanPham }) {
                   <button
                     key={index}
                     onClick={() => setSelectedVariant(bt)}
-                    className={`px-4 py-2 rounded-lg border transition ${
-                      selectedVariant?.id === bt.id
+                    className={`px-4 py-2 rounded-lg border transition ${selectedVariant?.id === bt.id
                         ? "bg-blue-600 text-white border-blue-600"
                         : "bg-gray-100 text-gray-800 border-gray-300 hover:bg-gray-200"
-                    }`}
+                      }`}
                   >
                     {bt.mau_sac}
                   </button>

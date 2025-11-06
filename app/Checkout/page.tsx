@@ -11,6 +11,25 @@ export default function CheckoutPage() {
     dien_thoai: "",
     ghi_chu: "",
   });
+
+   useEffect(() => {
+    // Lấy user hiện tại từ localStorage
+    const user = JSON.parse(localStorage.getItem("user") || "null");
+    if (!user) return;
+
+    // Gọi API để lấy thông tin user
+    fetch(`http://localhost:3000/api/users/${user.id}`)
+      .then((res) => res.json())
+      .then((data) => {
+        setFormData((prev) => ({
+          ...prev,
+          ten_nguoi_nhan: data.ho_ten || "",
+          dia_chi: data.dia_chi || "",
+          dien_thoai: data.dien_thoai || "",
+        }));
+      })
+      .catch((err) => console.error("Lỗi khi lấy thông tin user:", err));
+  }, []);
   const [phuongThucThanhToan, setPhuongThucThanhToan] = useState<"online" | "cod">("cod"); // Mặc định COD
   const [idUser, setIdUser] = useState<string | null>(null);
   // 🔹 Lấy id_user sau khi client render
@@ -129,20 +148,44 @@ export default function CheckoutPage() {
           {/* Các input cũ */}
           {/* <input type="text" placeholder="Họ tên" required className="border rounded px-3 py-2"
             value={formData.ho_ten} onChange={(e) => setFormData({ ...formData, ho_ten: e.target.value })} /> */}
-          <input
-            type="text"
-            placeholder="Tên người nhận"
-            required
-            className="border rounded px-3 py-2"
-            value={formData.ten_nguoi_nhan}
-            onChange={(e) => setFormData({ ...formData, ten_nguoi_nhan: e.target.value })}
-          />
-          <input type="text" placeholder="Địa chỉ" required className="border rounded px-3 py-2"
-            value={formData.dia_chi} onChange={(e) => setFormData({ ...formData, dia_chi: e.target.value })} />
-          <input type="text" placeholder="Số điện thoại" required className="border rounded px-3 py-2"
-            value={formData.dien_thoai} onChange={(e) => setFormData({ ...formData, dien_thoai: e.target.value })} />
-          <textarea placeholder="Ghi chú" className="border rounded px-3 py-2"
-            value={formData.ghi_chu} onChange={(e) => setFormData({ ...formData, ghi_chu: e.target.value })} />
+           <div className="flex flex-col gap-3">
+      <input
+        type="text"
+        placeholder="Tên người nhận"
+        required
+        className="border rounded px-3 py-2"
+        value={formData.ten_nguoi_nhan}
+        onChange={(e) => setFormData({ ...formData, ten_nguoi_nhan: e.target.value })}
+      />
+
+      <input
+        type="text"
+        placeholder="Địa chỉ"
+        required
+        className="border rounded px-3 py-2"
+        value={formData.dia_chi}
+        onChange={(e) => setFormData({ ...formData, dia_chi: e.target.value })}
+      />
+
+      <input
+        type="text"
+        placeholder="Số điện thoại"
+        required
+        className="border rounded px-3 py-2"
+        value={formData.dien_thoai}
+        onChange={(e) => setFormData({ ...formData, dien_thoai: e.target.value })}
+      />
+
+      <textarea
+        placeholder="Ghi chú"
+        className="border rounded px-3 py-2"
+        value={formData.ghi_chu}
+        onChange={(e) => setFormData({ ...formData, ghi_chu: e.target.value })}
+      />
+    </div>
+
+
+
 
           {/* === THÊM PHƯƠNG THỨC THANH TOÁN === */}
           <div className="mt-4 p-4 bg-gray-50 rounded-lg">

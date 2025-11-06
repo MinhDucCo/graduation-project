@@ -425,9 +425,76 @@ app.post("/api/cart/add", async (req, res) => {
     res.status(500).json({ message: "Lỗi server!" });
   }
 });
+// app.post("/api/cart/add", async (req, res) => {
+//   const { ten_san_pham, gia, id_user, id_san_pham, so_luong, hinh, mau_sac } = req.body;
+
+//   try {
+//     // ✅ Lấy số lượng tồn kho của sản phẩm
+//     const product = await PhuTungXeModel.findOne({ where: { ma_san_pham: id_san_pham } });
+//     if (!product) return res.status(404).json({ message: "Sản phẩm không tồn tại" });
+
+//     const max_stock = Number(product.so_luong); // số lượng tối đa có thể mua
+
+//     // ==================== CHƯA ĐĂNG NHẬP (SESSION) ====================
+//     if (!id_user) {
+//       if (!req.session.cart) req.session.cart = [];
+
+//       const item = req.session.cart.find(
+//         (i) => i.id_san_pham === id_san_pham && i.mau_sac === mau_sac
+//       );
+
+//       if (item) {
+//         // ✅ Cộng số lượng nhưng không vượt tồn kho
+//         item.so_luong = Math.min(item.so_luong + so_luong, max_stock);
+//       } else {
+//         req.session.cart.push({
+//           ten_san_pham,
+//           gia,
+//           id_san_pham,
+//           so_luong: Math.min(so_luong, max_stock),
+//           hinh,
+//           mau_sac,
+//         });
+//       }
+
+//       return res.json({ message: "🛒 Đã thêm vào giỏ hàng (khách)", cart: req.session.cart });
+//     }
+
+//     // ==================== ĐÃ ĐĂNG NHẬP (DB) ====================
+//     let item = await GioHangModel.findOne({
+//       where: { id_user, id_san_pham, mau_sac }
+//     });
+
+//     if (item) {
+//       // ✅ Cộng nhưng không vượt tồn kho
+//       const newQty = Math.min(item.so_luong + so_luong, max_stock);
+//       await item.update({ so_luong: newQty });
+//     } else {
+//       await GioHangModel.create({
+//         ten_san_pham,
+//         gia,
+//         id_user,
+//         id_san_pham,
+//         so_luong: Math.min(so_luong, max_stock),
+//         hinh,
+//         mau_sac,
+//         ngay_them: new Date(),
+//       });
+//     }
+
+//     return res.json({ message: "✅ Đã thêm sản phẩm vào giỏ hàng!" });
+
+//   } catch (error) {
+//     console.error("❌ Lỗi thêm giỏ hàng:", error);
+//     return res.status(500).json({ message: "Lỗi server!" });
+//   }
+// });
+
 
 
 // Lấy toàn bộ giỏ hàng
+
+
 app.get("/api/cart", async (req, res) => {
   const { id_user } = req.query;
 
@@ -458,6 +525,7 @@ app.delete("/api/cart/delete/:id", async (req, res) => {
   }
 });
 
+
 // ✅ XÓA TOÀN BỘ GIỎ HÀNG CỦA 1 USER (sau khi đặt hàng)
 app.delete("/api/cart", async (req, res) => {
   const { id_user } = req.query;
@@ -478,6 +546,40 @@ app.delete("/api/cart", async (req, res) => {
     res.status(500).json({ success: false, message: "Lỗi server khi xóa giỏ hàng", error: err.message });
   }
 });
+//gom giỏ hàng từ guest sang user
+app.post("/api/cart/merge", async (req, res) => {
+  const { guestId, userId } = req.body;
+
+  try {
+    // Lấy giỏ hàng của guest
+    const guestCart = await GioHangModel.findAll({ where: { id_user: guestId } });
+
+    // Nếu không có gì thì kết thúc
+    if (!guestCart.length) return res.json({ success: true, merged: false });
+
+    for (const item of guestCart) {
+      // Kiểm tra xem user đã có sản phẩm này chưa
+      const exist = await GioHangModel.findOne({
+        where: { id_user: userId, id_san_pham: item.id_san_pham },
+      });
+
+      if (exist) {
+        // Nếu đã có → cộng dồn số lượng
+        await exist.update({ quantity: exist.quantity + item.quantity });
+      } else {
+        // Nếu chưa có → chuyển quyền sở hữu giỏ hàng
+        await item.update({ id_user: userId });
+      }
+    }
+
+    res.json({ success: true, merged: true });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Không thể gộp giỏ hàng" });
+  }
+});
+
 
 // Cập nhật số lượng sản phẩm trong giỏ và kiểm tra tồn kho
 app.put("/api/cart/update/:id", async (req, res) => {
@@ -817,6 +919,24 @@ app.put('/api/users/profile', async (req, res) => {
     res.status(500).json({ message: 'Lỗi server' });
   }
 });
+
+app.get("/api/users/:id", async (req, res) => {
+  try {
+    const user = await Users.findByPk(req.params.id, {
+      attributes: ["ho_ten", "dia_chi", "dien_thoai"], // chỉ lấy 3 field cần thiết
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: "Không tìm thấy user!" });
+    }
+
+    res.json(user);
+  } catch (error) {
+    console.error("Lỗi lấy thông tin user:", error);
+    res.status(500).json({ message: "Lỗi server!" });
+  }
+});
+
 
 // API Đặt hàng
 app.post("/api/donhang", async (req, res) => {
