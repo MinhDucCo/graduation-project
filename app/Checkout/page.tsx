@@ -65,8 +65,6 @@ export default function CheckoutPage() {
 
   fetchCart();
 }, []);
-
-
   // 🔹 Submit đơn hàng
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -96,12 +94,11 @@ export default function CheckoutPage() {
       const data = await res.json();
       if (data.success) {
         // Xóa giỏ hàng
+            setCart([]);
         localStorage.removeItem("cart");
-        setCart([]);
         if (idUser) {
       try {
-         await fetch(`http://localhost:3000/api/cart?id_user=${idUser}`, { method: "DELETE" });
-
+         await fetch(`http://localhost:3000/api/cart/${idUser}`, { method: "DELETE" });
         console.log("🗑️ Giỏ hàng đã được xóa trong DB");
       } catch (err) {
         console.error("❌ Lỗi khi xóa giỏ hàng trong DB:", err);

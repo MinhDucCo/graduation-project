@@ -357,6 +357,8 @@ app.get('/api/timkiem/:tu_khoa/count', async (req, res) => {
 });
 
 
+
+// 🛒 API lấy giỏ hàng của user
 app.get("/api/cart", async (req, res) => {
   const { id_user } = req.query;
   const userId = id_user || 10; // Mặc định là khách
@@ -375,9 +377,6 @@ app.get("/api/cart", async (req, res) => {
     res.status(500).json({ message: "Lỗi server khi lấy giỏ hàng" });
   }
 });
-
-
-
 // 🛒 API thêm sản phẩm vào giỏ hàng
 app.post("/api/cart/add", async (req, res) => {
   const { ten_san_pham, gia, id_user, id_san_pham, so_luong, hinh, mau_sac } = req.body;
@@ -425,93 +424,25 @@ app.post("/api/cart/add", async (req, res) => {
     res.status(500).json({ message: "Lỗi server!" });
   }
 });
-// app.post("/api/cart/add", async (req, res) => {
-//   const { ten_san_pham, gia, id_user, id_san_pham, so_luong, hinh, mau_sac } = req.body;
-
-//   try {
-//     // ✅ Lấy số lượng tồn kho của sản phẩm
-//     const product = await PhuTungXeModel.findOne({ where: { ma_san_pham: id_san_pham } });
-//     if (!product) return res.status(404).json({ message: "Sản phẩm không tồn tại" });
-
-//     const max_stock = Number(product.so_luong); // số lượng tối đa có thể mua
-
-//     // ==================== CHƯA ĐĂNG NHẬP (SESSION) ====================
-//     if (!id_user) {
-//       if (!req.session.cart) req.session.cart = [];
-
-//       const item = req.session.cart.find(
-//         (i) => i.id_san_pham === id_san_pham && i.mau_sac === mau_sac
-//       );
-
-//       if (item) {
-//         // ✅ Cộng số lượng nhưng không vượt tồn kho
-//         item.so_luong = Math.min(item.so_luong + so_luong, max_stock);
-//       } else {
-//         req.session.cart.push({
-//           ten_san_pham,
-//           gia,
-//           id_san_pham,
-//           so_luong: Math.min(so_luong, max_stock),
-//           hinh,
-//           mau_sac,
-//         });
-//       }
-
-//       return res.json({ message: "🛒 Đã thêm vào giỏ hàng (khách)", cart: req.session.cart });
-//     }
-
-//     // ==================== ĐÃ ĐĂNG NHẬP (DB) ====================
-//     let item = await GioHangModel.findOne({
-//       where: { id_user, id_san_pham, mau_sac }
-//     });
-
-//     if (item) {
-//       // ✅ Cộng nhưng không vượt tồn kho
-//       const newQty = Math.min(item.so_luong + so_luong, max_stock);
-//       await item.update({ so_luong: newQty });
-//     } else {
-//       await GioHangModel.create({
-//         ten_san_pham,
-//         gia,
-//         id_user,
-//         id_san_pham,
-//         so_luong: Math.min(so_luong, max_stock),
-//         hinh,
-//         mau_sac,
-//         ngay_them: new Date(),
-//       });
-//     }
-
-//     return res.json({ message: "✅ Đã thêm sản phẩm vào giỏ hàng!" });
-
-//   } catch (error) {
-//     console.error("❌ Lỗi thêm giỏ hàng:", error);
-//     return res.status(500).json({ message: "Lỗi server!" });
-//   }
-// });
-
-
 
 // Lấy toàn bộ giỏ hàng
+// app.get("/api/cart", async (req, res) => {
+//   const { id_user } = req.query;
 
-
-app.get("/api/cart", async (req, res) => {
-  const { id_user } = req.query;
-
-  try {
-    if (id_user) {
-      // 🧾 Đã đăng nhập → lấy DB
-      const cart = await GioHangModel.findAll({ where: { id_user } });
-      return res.json(cart);
-    } else {
-      // 🚫 Chưa đăng nhập → lấy session
-      return res.json(req.session.cart || []);
-    }
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Không thể lấy giỏ hàng" });
-  }
-});
+//   try {
+//     if (id_user) {
+//       // 🧾 Đã đăng nhập → lấy DB
+//       const cart = await GioHangModel.findAll({ where: { id_user } });
+//       return res.json(cart);
+//     } else {
+//       // 🚫 Chưa đăng nhập → lấy session
+//       return res.json(req.session.cart || []);
+//     }
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).json({ error: "Không thể lấy giỏ hàng" });
+//   }
+// });
 
 // 🗑️ Xóa sản phẩm khỏi giỏ
 app.delete("/api/cart/delete/:id", async (req, res) => {
@@ -527,23 +458,15 @@ app.delete("/api/cart/delete/:id", async (req, res) => {
 
 
 // ✅ XÓA TOÀN BỘ GIỎ HÀNG CỦA 1 USER (sau khi đặt hàng)
+// DELETE /api/cart
 app.delete("/api/cart", async (req, res) => {
-  const { id_user } = req.query;
-
-  if (!id_user) {
-    return res.status(400).json({ success: false, message: "Thiếu id_user" });
-  }
-
+  const idUser = req.session.user?.id || 10; // Hoặc lấy từ query nếu muốn
   try {
-    const deleted = await GioHangModel.destroy({ where: { id_user } });
-    if (deleted === 0) {
-      return res.json({ success: false, message: "Không có sản phẩm nào trong giỏ hàng của user này" });
-    }
-
-    res.json({ success: true, message: "Đã xóa toàn bộ giỏ hàng của người dùng" });
+    await GioHangModel.destroy({ where: { id_user: idUser } });
+    return res.json({ success: true, message: "Giỏ hàng đã được xóa" });
   } catch (err) {
-    console.error("❌ Lỗi khi xóa giỏ hàng:", err);
-    res.status(500).json({ success: false, message: "Lỗi server khi xóa giỏ hàng", error: err.message });
+    console.error(err);
+    return res.status(500).json({ success: false, message: "Lỗi server" });
   }
 });
 //gom giỏ hàng từ guest sang user
@@ -579,8 +502,6 @@ app.post("/api/cart/merge", async (req, res) => {
     res.status(500).json({ error: "Không thể gộp giỏ hàng" });
   }
 });
-
-
 // Cập nhật số lượng sản phẩm trong giỏ và kiểm tra tồn kho
 app.put("/api/cart/update/:id", async (req, res) => {
   const { so_luong } = req.body;
@@ -620,7 +541,7 @@ app.put("/api/cart/update/:id", async (req, res) => {
     res.status(500).json({ error: "Cập nhật số lượng thất bại" });
   }
 });
-// API đăng nhập
+// API đăng nhập + gôp giỏ hàng 
 app.post("/api/auth/login", async (req, res) => {
   const { email, mat_khau } = req.body;
 
@@ -629,26 +550,25 @@ app.post("/api/auth/login", async (req, res) => {
   }
 
   try {
-    // Tìm user trong DB
     const user = await Users.findOne({ where: { email } });
 
     if (!user) {
       return res.status(400).json({ message: "Email không tồn tại!" });
     }
 
-    // Kiểm tra mật khẩu (bcrypt hoặc plain text)
+    // Kiểm tra mật khẩu
     let match = false;
     if (user.mat_khau.startsWith("$2b$")) {
       match = await bcrypt.compare(mat_khau, user.mat_khau);
     } else {
-      match = mat_khau === user.mat_khau;
+      match = mat_khau === user.mat_khau; 
     }
 
     if (!match) {
       return res.status(400).json({ message: "Sai mật khẩu!" });
     }
 
-    // Lưu thông tin user vào session
+    // ✅ Lưu session
     req.session.user = {
       id: user.id,
       email: user.email,
@@ -656,44 +576,37 @@ app.post("/api/auth/login", async (req, res) => {
       vai_tro: user.vai_tro,
     };
 
-    console.log("Session user sau khi đăng nhập:", req.session.user);
+    console.log("🔐 Đăng nhập thành công:", req.session.user);
 
-    // GỘP GIỎ HÀNG SESSION VÀO DATABASE
-    if (req.session.cart && req.session.cart.length > 0) {
-      console.log("Gộp giỏ hàng session vào DB cho user:", user.id);
+    // ✅ GỘP GIỎ HÀNG user 10 → user.id
+    const guestCart = await GioHangModel.findAll({ where: { id_user: 10 } });
 
-      for (const item of req.session.cart) {
-        const existing = await GioHangModel.findOne({
-          where: {
-            id_user: user.id,
-            id_san_pham: item.id_san_pham,
-            mau_sac: item.mau_sac,
-          },
-        });
-
-        if (existing) {
-          await existing.update({
-            so_luong: existing.so_luong + item.so_luong,
-          });
-        } else {
-          await GioHangModel.create({
-            ten_san_pham: item.ten_san_pham,
-            gia: item.gia,
-            id_user: user.id,
-            id_san_pham: item.id_san_pham,
-            so_luong: item.so_luong,
-            hinh: item.hinh,
-            mau_sac: item.mau_sac,
-            ngay_them: new Date(),
-          });
+    for (const item of guestCart) {
+      // Kiểm tra xem đã có món trùng trong giỏ user chưa
+      const exists = await GioHangModel.findOne({
+        where: {
+          id_user: user.id,
+          id_san_pham: item.id_san_pham,
+          mau_sac: item.mau_sac
         }
-      }
+      });
 
-      req.session.cart = [];
-      console.log("Đã xóa giỏ hàng session sau khi gộp!");
+      if (exists) {
+        // Nếu có → tăng số lượng
+        await exists.update({
+          so_luong: exists.so_luong + item.so_luong
+        });
+      } else {
+        // Nếu chưa có → chuyển sản phẩm sang user thật
+        await item.update({ id_user: user.id });
+      }
     }
 
-    // TRẢ VỀ ĐẦY ĐỦ THÔNG TIN CHO FRONTEND
+    // 🗑️ Xóa sạch giỏ hàng của user 10
+    await GioHangModel.destroy({ where: { id_user: 10 } });
+
+    console.log("🧹 Đã gộp và xóa giỏ hàng tạm (id=10)");
+
     return res.json({
       message: "Đăng nhập thành công!",
       user: {
@@ -701,18 +614,16 @@ app.post("/api/auth/login", async (req, res) => {
         email: user.email,
         ho_ten: user.ho_ten,
         vai_tro: user.vai_tro,
-        dien_thoai: user.dien_thoai,   
-        dia_chi: user.dia_chi,      
+        dien_thoai: user.dien_thoai,
+        dia_chi: user.dia_chi,
       },
     });
 
   } catch (err) {
-    console.error("Lỗi đăng nhập:", err);
+    console.error("🔥 Lỗi đăng nhập:", err);
     return res.status(500).json({ message: "Lỗi server!" });
   }
 });
-
-
 
 // 📩 API: Gửi thông tin liên hệ
 app.post("/api/lien-he", async (req, res) => {
@@ -938,93 +849,81 @@ app.get("/api/users/:id", async (req, res) => {
 });
 
 
-// API Đặt hàng
-app.post("/api/donhang", async (req, res) => {
-  const {
-    ho_ten,
-    dia_chi,
-    ten_nguoi_nhan,
-    dien_thoai,
-    ghi_chu,
-    id_user,
-    san_pham,
-    phuong_thuc,
-  } = req.body;
 
-  if (
-    !ho_ten ||
-    !dia_chi ||
-    !ten_nguoi_nhan ||
-    !dien_thoai ||
-    !san_pham ||
-    san_pham.length === 0
-  ) {
-    return res.status(400).json({ message: "Thiếu thông tin bắt buộc!" });
-  }
+// app.post("/api/donhang", async (req, res) => {
+//   const {
+//     ho_ten,
+//     dia_chi,
+//     ten_nguoi_nhan,
+//     dien_thoai,
+//     ghi_chu,
+//     id_user,
+//     san_pham,
+//     phuong_thuc,
+//   } = req.body;
 
-  try {
-    // ✅ Nếu không có id_user (người chưa đăng nhập) => mặc định dùng user khách id = 10
-    const finalUserId = id_user || 10;
-
-    // 1️⃣ Tạo đơn hàng
-    const donHang = await DonHangModel.create({
-      ho_ten,
-      dia_chi,
-      ten_nguoi_nhan,
-      dien_thoai,
-      ghi_chu: ghi_chu || null,
-      id_user: finalUserId,
-      status: phuong_thuc === "online" ? "Chờ thanh toán" : "Chờ xác nhận",
-      phuong_thuc: phuong_thuc || "cod",
-    });
-
-    // 2️⃣ Tạo chi tiết đơn hàng
-    const chiTietData = san_pham.map((item) => ({
-      id_don_hang: donHang.id,
-      id_san_pham: item.id_san_pham,
-      so_luong: item.so_luong,
-      gia: item.gia,
-    }));
-
-    await ChiTietDonHangModel.bulkCreate(chiTietData);
-
-    // 3️⃣ Xóa giỏ hàng của user sau khi đặt hàng
-    await GioHangModel.destroy({
-      where: { id_user: finalUserId },
-    });
-
-    // 4️⃣ Tính tổng tiền & trả về kết quả
-    const tong_tien = chiTietData.reduce(
-      (sum, item) => sum + item.gia * item.so_luong,
-      0
-    );
-
-    res.status(201).json({
-      message: "Đặt hàng thành công! Giỏ hàng đã được làm trống.",
-      don_hang_id: donHang.id,
-      tong_tien,
-      phuong_thuc,
-    });
-  } catch (error) {
-    console.error("❌ Lỗi đặt hàng:", error);
-    res
-      .status(500)
-      .json({ message: "Lỗi server khi đặt hàng", error: error.message });
-  }
-});
-
-// 🟢 API lấy danh sách đơn hàng
-// app.get("/api/donhang", async (req, res) => {
-//   try {
-//     const donHangs = await DonHangModel.findAll({
-//       include: [ChiTietDonHangModel], // Lấy cả chi tiết đơn hàng
-//       order: [["ngay_dat", "DESC"]],
-//     });
-//     res.json(donHangs);
-//   } catch (err) {
-//     console.error("Lỗi lấy danh sách đơn hàng:", err);
-//     res.status(500).json({ error: "Không lấy được danh sách đơn hàng!" });
+//   if (
+//     !ho_ten ||
+//     !dia_chi ||
+//     !ten_nguoi_nhan ||
+//     !dien_thoai ||
+//     !san_pham ||
+//     san_pham.length === 0
+//   ) {
+//     return res.status(400).json({ message: "Thiếu thông tin bắt buộc!" });
 //   }
+
+//   try {
+//     // ✅ Nếu không có id_user (người chưa đăng nhập) => mặc định dùng user khách id = 10
+//     const finalUserId = id_user || 10;
+
+//     // 1️⃣ Tạo đơn hàng
+//     const donHang = await DonHangModel.create({
+//       ho_ten,
+//       dia_chi,
+//       ten_nguoi_nhan,
+//       dien_thoai,
+//       ghi_chu: ghi_chu || null,
+//       id_user: finalUserId,
+//       status: phuong_thuc === "online" ? "Chờ thanh toán" : "Chờ xác nhận",
+//       phuong_thuc: phuong_thuc || "cod",
+//     });
+
+//     // 2️⃣ Tạo chi tiết đơn hàng
+//     const chiTietData = san_pham.map((item) => ({
+//       id_don_hang: donHang.id,
+//       id_san_pham: item.id_san_pham,
+//       so_luong: item.so_luong,
+//       gia: item.gia,
+//     }));
+
+//     await ChiTietDonHangModel.bulkCreate(chiTietData);
+
+//     // 3️⃣ Xóa giỏ hàng của user sau khi đặt hàng
+//     await GioHangModel.destroy({
+//       where: { id_user: finalUserId },
+//     });
+
+//     // 4️⃣ Tính tổng tiền & trả về kết quả
+//     const tong_tien = chiTietData.reduce(
+//       (sum, item) => sum + item.gia * item.so_luong,
+//       0
+//     );
+
+//     res.status(201).json({
+//       message: "Đặt hàng thành công! Giỏ hàng đã được làm trống.",
+//       don_hang_id: donHang.id,
+//       tong_tien,
+//       phuong_thuc,
+//     });
+//   } catch (error) {
+//     console.error("❌ Lỗi đặt hàng:", error);
+//     res
+//       .status(500)
+//       .json({ message: "Lỗi server khi đặt hàng", error: error.message });
+//   }
+// });
+
 // });
 // 🟢 API lấy chi tiết 1 đơn hàng
 app.get("/api/donhang/:id", async (req, res) => {
@@ -1044,20 +943,21 @@ app.get("/api/donhang/:id", async (req, res) => {
   }
 });
 
-// api/orders/create.js
+// 📦 API: Tạo đơn hàng mới
 app.post("/api/orders/create", async (req, res) => {
   const { ten_nguoi_nhan, dia_chi, dien_thoai, ghi_chu, id_user, items, phuong_thuc } = req.body;
 
-  // BẮT BUỘC: ten_nguoi_nhan, dia_chi, dien_thoai, items
   if (!ten_nguoi_nhan || !dia_chi || !dien_thoai || !items || !Array.isArray(items) || items.length === 0) {
     return res.status(400).json({ error: "Thiếu thông tin bắt buộc!" });
   }
 
   try {
+    const finalUserId = id_user || 10; // Nếu chưa login, dùng user 10 (khách)
     const tong_tien = items.reduce((sum, item) => sum + item.gia * item.so_luong, 0);
 
+    // 1️⃣ Tạo đơn hàng
     const donHang = await DonHangModel.create({
-      ten_nguoi_nhan,    // CHỈ DÙNG CÁI NÀY
+      ten_nguoi_nhan,
       dia_chi,
       dien_thoai,
       ghi_chu: ghi_chu || null,
@@ -1066,15 +966,15 @@ app.post("/api/orders/create", async (req, res) => {
       phuong_thuc: phuong_thuc || "cod",
     });
 
-   const chiTietData = items.map(item => ({
-  id_don_hang: donHang.id,
-  id_san_pham: item.id_san_pham, // item.id_san_pham = ma_san_pham
-  so_luong: item.so_luong || 1,
-  gia: Math.round(item.gia),
-}));
-
+    // 2️⃣ Tạo chi tiết đơn hàng
+    const chiTietData = items.map(item => ({
+      id_don_hang: donHang.id,
+      id_san_pham: item.id_san_pham,
+      so_luong: item.so_luong || 1,
+      gia: Math.round(item.gia),
+    }));
     await ChiTietDonHangModel.bulkCreate(chiTietData);
-
+    // 4️⃣ Trả về kết quả
     res.status(201).json({
       success: true,
       don_hang_id: donHang.id,
@@ -1085,6 +985,7 @@ app.post("/api/orders/create", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
 
 // routes/orders.js
 router.post('/update-status', async (req, res) => {
@@ -1140,22 +1041,101 @@ app.post("/api/vnpay/create_payment", (req, res) => {
   return res.json({ paymentUrl });
 });
 
+//------------------------------------------------------------- API QUẢN LÝ ĐƠN HÀNG CHO ÚSER----------------------------------------------
+//API lấy danh sách đơn hàng của user
+app.get("/api/orders", async (req, res) => {
+  const { id_user } = req.query;
 
-app.post("/api/cart/add", async (req, res) => {
-  const { id_user, id_san_pham, so_luong } = req.body;
+  if (!id_user) return res.json([]);
+
+  const orders = await DonHangModel.findAll({
+    where: { id_user },
+    order: [["id", "DESC"]],
+  });
+
+  res.json(orders);
+});
+
+//API xem chi tiết 1 đơn hàng
+app.get("/api/orders/:id", async (req, res) => {
+  const { id } = req.params;
 
   try {
-    await GioHangModel.create({
-      id_user,
-      id_san_pham,
-      so_luong,
+    const order = await DonHangModel.findOne({
+      where: { id },
+      include: [{ model: ChiTietDonHangModel }],
     });
-    res.json({ success: true, message: "Đã thêm vào giỏ hàng!" });
+
+    if (!order) {
+      return res.status(404).json({ message: "Đơn hàng không tồn tại!" });
+    }
+
+    res.json(order);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Thêm vào giỏ hàng thất bại" });
+    res.status(500).json({ message: "Lỗi server!" });
   }
 });
+//API hủy đơn hàng
+//Chỉ cho phép hủy nếu trạng thái là Chờ xác nhận hoặc Đang xử lý.
+app.put("/api/orders/cancel/:id", async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const order = await DonHangModel.findByPk(id);
+
+    if (!order) return res.status(404).json({ message: "Không tìm thấy đơn hàng!" });
+
+    if (!["Chờ xác nhận", "Đang xử lý"].includes(order.status)) {
+      return res.status(400).json({ message: "Đơn hàng không thể hủy nữa!" });
+    }
+
+    await order.update({ status: "Đã hủy" });
+
+    return res.json({ message: "Hủy đơn hàng thành công!" });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Lỗi server!" });
+  }
+});
+//API chuyển trạng thái đơn hàng (dành cho Admin)
+app.put("/api/orders/status/:id", async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body; // Chờ xác nhận / Đang xử lý / Đang giao / Đã nhận
+
+  try {
+    const order = await DonHangModel.findByPk(id);
+
+    if (!order) return res.status(404).json({ message: "Không tìm thấy đơn hàng!" });
+
+    await order.update({ status });
+
+    res.json({ message: "Cập nhật trạng thái thành công!" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Lỗi server!" });
+  }
+});
+//API đánh giá sản phẩm (khi đơn đã nhận)
+app.post("/api/orders/rate", async (req, res) => {
+  const { id_chi_tiet, sao, danh_gia } = req.body;
+
+  try {
+    const item = await ChiTietDonHangModel.findByPk(id_chi_tiet);
+
+    if (!item) return res.status(404).json({ message: "Không tìm thấy sản phẩm!" });
+
+    await item.update({ sao, danh_gia });
+
+    res.json({ message: "Đánh giá thành công!" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Lỗi server!" });
+  }
+});
+
+
 
 
 app.listen(port, () => {

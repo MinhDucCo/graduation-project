@@ -4,6 +4,23 @@ import Link from "next/link";
 export default function AddToCart() {
   const [cart, setCart] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+
+
+  useEffect(() => {
+  fetchCart(); // fetch lần đầu
+
+  const handleCartUpdated = () => {
+    fetchCart(); // fetch lại khi cart được cập nhật (xóa, đặt hàng)
+  };
+
+  window.addEventListener("cart-updated", handleCartUpdated);
+
+  return () => {
+    window.removeEventListener("cart-updated", handleCartUpdated);
+  };
+}, []);
+
   // 🛒 Fetch giỏ hàng: DB nếu login, sessionStorage nếu chưa login
   const fetchCart = async () => {
   setLoading(true);

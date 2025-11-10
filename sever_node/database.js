@@ -198,6 +198,7 @@ DonHangModel.hasMany(ChiTietDonHangModel, { foreignKey: "id_don_hang", onDelete:
 ChiTietDonHangModel.belongsTo(DonHangModel, { foreignKey: "id_don_hang" });
 
 
+
 // Xuất module để sử dụng
 console.log('Exporting Users:', Users);
 module.exports = {
