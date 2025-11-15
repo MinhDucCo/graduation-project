@@ -34,8 +34,9 @@ export default function CheckoutPage() {
   const [idUser, setIdUser] = useState<string | null>(null);
   // 🔹 Lấy id_user sau khi client render
   useEffect(() => {
-    const userId = localStorage.getItem("id_user");
-    setIdUser(userId);
+    const user = JSON.parse(localStorage.getItem("user") || "null");
+const idUser = user ? user.id : null;
+    setIdUser(idUser);
   }, []);
 
   useEffect(() => {
@@ -72,18 +73,18 @@ export default function CheckoutPage() {
       alert("Giỏ hàng của bạn đang trống!");
       return;
     }
-    const idUser = localStorage.getItem("user_id");
+   const user = JSON.parse(localStorage.getItem("user") || "null");
+const idUser = user?.id || null;
     const orderData = {
       ...formData,
-      
-      id_user: idUser,
-      items: cart.map((item) => ({
-        id_san_pham: item.id_san_pham,
-        so_luong: item.so_luong,
-        gia: item.gia,
-      })),
-      phuong_thuc: phuongThucThanhToan, // Gửi phương thức
-    };
+  id_user: idUser,
+  items: cart.map((item) => ({
+    id_san_pham: item.id_san_pham,
+    so_luong: item.so_luong,
+    gia: item.gia,
+  })),
+  phuong_thuc: phuongThucThanhToan,
+};
 
     try {
       const res = await fetch("http://localhost:3000/api/orders/create", {
@@ -97,6 +98,7 @@ export default function CheckoutPage() {
             setCart([]);
         localStorage.removeItem("cart");
         if (idUser) {
+          console.log("Order gửi lên:", orderData);
       try {
          await fetch(`http://localhost:3000/api/cart/${idUser}`, { method: "DELETE" });
         console.log("🗑️ Giỏ hàng đã được xóa trong DB");
@@ -133,6 +135,8 @@ export default function CheckoutPage() {
       console.error("Lỗi khi đặt hàng:", err);
     }
   }
+
+  
 
   return (
     <div className="container mx-auto p-6 grid grid-cols-1 md:grid-cols-2 gap-6">

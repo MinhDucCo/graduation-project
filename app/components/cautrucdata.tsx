@@ -5,6 +5,7 @@ export interface ILoai {
   an_hien: number;
 }
 
+
 // Bảng sản phẩm gốc (phu_tung_xe)
 export interface ISanPham {
   ma_san_pham: number;   // mã sản phẩm (id)

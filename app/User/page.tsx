@@ -211,22 +211,30 @@ export default function NguoiDungPage() {
             <div className="flex gap-3 mt-8">
               <button
                 onClick={() => setIsEditing(true)}
-                className="flex-1 bg-gradient-to-r from-red-500 to-pink-500 to-emerald-600 hover:from-red-600 hover:to-red-700 text-white font-semibold py-3 rounded-lg shadow-md transition-all"
+                className="flex-1 bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-red-700 text-white font-semibold py-3 rounded-lg shadow-md transition-all"
               >
                 Chỉnh sửa thông tin
               </button>
 
               <button
                 onClick={() => {
-                  localStorage.removeItem('user');
-                  router.push('/');
+                  localStorage.removeItem("user");
+                  router.push("/");
                 }}
                 className="flex-1 bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white font-semibold py-3 rounded-lg shadow-md transition-all"
               >
                 Đăng xuất
               </button>
+
+              <button
+                onClick={() => router.push("/don-hang-cua-toi")}
+                className="flex-1 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-semibold py-3 rounded-lg shadow-md transition-all"
+              >
+                Đơn hàng của tôi
+              </button>
             </div>
-            
+
+
           </>
         )}
       </div>

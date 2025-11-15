@@ -7,25 +7,23 @@ export default function SanPhamPage() {
   const [products, setProducts] = useState<ISanPham[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [loaiXe, setLoaiXe] = useState<"xeMay" | "oto">("xeMay"); // ✅ phân loại
+  const [loaiXe, setLoaiXe] = useState<"xeMay" | "oto">("xeMay");
+  const [sortOrder, setSortOrder] = useState<"ASC" | "DESC">("ASC"); // thứ tự sắp xếp giá
 
   useEffect(() => {
     const apiUrl =
       loaiXe === "xeMay"
-        ? `http://localhost:3000/api/san_pham/an_hien_2?page=${page}&limit=12`
-        : `http://localhost:3000/api/san_pham/an_hien_3?page=${page}&limit=12`;
+        ? `http://localhost:3000/api/san_pham/an_hien_2?page=${page}&limit=12&sortOrder=${sortOrder}`
+        : `http://localhost:3000/api/san_pham/an_hien_3?page=${page}&limit=12&sortOrder=${sortOrder}`;
 
     fetch(apiUrl)
       .then((res) => res.json())
       .then((data) => {
-        // backend trả khác nhau: data.data hoặc data.pagination
         setProducts(data.data || []);
-        setTotalPages(
-          data.pagination?.totalPages || data.totalPages || 1
-        );
+        setTotalPages(data.pagination?.totalPages || data.totalPages || 1);
       })
       .catch((err) => console.error("Lỗi khi load sản phẩm:", err));
-  }, [page, loaiXe]);
+  }, [page, loaiXe, sortOrder]); // ✅ thêm sortOrder vào dependency
 
   return (
     <div className="w-[90%] mx-auto my-6">
@@ -33,8 +31,8 @@ export default function SanPhamPage() {
         {loaiXe === "xeMay" ? "Phụ tùng xe máy" : "Phụ tùng ô tô"}
       </h2>
 
-      {/*Bộ chọn danh mục */} 
-      <div className="flex justify-center gap-4 mb-8">
+      {/* Bộ chọn danh mục */}
+      <div className="flex justify-center gap-4 mb-4">
         <button
           onClick={() => {
             setLoaiXe("xeMay");
@@ -48,7 +46,6 @@ export default function SanPhamPage() {
         >
           Phụ tùng xe máy
         </button>
-
         <button
           onClick={() => {
             setLoaiXe("oto");
@@ -64,7 +61,31 @@ export default function SanPhamPage() {
         </button>
       </div>
 
-      {/* ✅ Danh sách sản phẩm */}
+      {/* Nút sắp xếp giá */}
+      <div className="flex justify-center gap-4 mb-6">
+        <button
+          onClick={() => setSortOrder("ASC")}
+          className={`px-5 py-2 rounded-full font-semibold border transition duration-300 ${
+            sortOrder === "ASC"
+              ? "bg-blue-600 text-white shadow-md"
+              : "bg-white text-blue-600 border-blue-600 hover:bg-blue-50"
+          }`}
+        >
+          Giá thấp → cao
+        </button>
+        <button
+          onClick={() => setSortOrder("DESC")}
+          className={`px-5 py-2 rounded-full font-semibold border transition duration-300 ${
+            sortOrder === "DESC"
+              ? "bg-blue-600 text-white shadow-md"
+              : "bg-white text-blue-600 border-blue-600 hover:bg-blue-50"
+          }`}
+        >
+          Giá cao → thấp
+        </button>
+      </div>
+
+      {/* Danh sách sản phẩm */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
         {products.length > 0 ? (
           products.map((sp, i) => (
@@ -83,7 +104,7 @@ export default function SanPhamPage() {
         )}
       </div>
 
-      {/* ✅ Phân trang */}
+      {/* Phân trang */}
       <div className="flex justify-center items-center gap-4 mt-8">
         <button
           disabled={page <= 1}
@@ -104,18 +125,18 @@ export default function SanPhamPage() {
         </button>
       </div>
 
-      {/* ✅ CSS animation */}
+      {/* CSS animation */}
       <style jsx>{`
         @keyframes fadeInSlow {
-        from {
-          opacity: 0;
-          transform: translateY(20px));
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
         }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
-      }
       `}</style>
     </div>
   );

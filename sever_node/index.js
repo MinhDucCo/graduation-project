@@ -30,7 +30,8 @@ const {
   GioHangModel,
   LienHeModel,
   DonHangModel,
-  ChiTietDonHangModel
+  ChiTietDonHangModel,
+  BinhLuan
 } = require("./database.js");
 const app = express();
 const routes = require("./Routes.js");
@@ -147,86 +148,59 @@ app.get("/api/sanpham/:ma_san_pham", async (req, res) => {
     res.status(500).json({ message: "Lỗi server" });
   }
 });
+// ;lấy tất cả sản phẩm có an_hien = 2 (Xe máy) kèm phân trang
+  app.get("/api/san_pham/an_hien_2", async (req, res) => {
+    try {
+      // Lấy page & limit từ query, có mặc định
+      let page = parseInt(req.query.page) || 1; // trang hiện tại
+      let limit = parseInt(req.query.limit) || 8; // số sản phẩm mỗi trang
+      let offset = (page - 1) * limit;
+  const sortOrder = req.query.sortOrder === "DESC" ? "DESC" : "ASC";
+      // Lấy danh sách sản phẩm kèm tổng số sản phẩm
+      const { rows: sp_arr, count: total } = await PhuTungXeModel.findAndCountAll({
+        where: { an_hien: 2 },
+        include: [
+          {
+            model: LoaiXeModel,
+            attributes: ["ten_loai"], // lấy tên loại xe
+          },
+          {
+            model: BienTheSanPhamModel,
+            attributes: ["mau_sac", "gia", "so_luong", "hinh"], // lấy thông tin biến thể
+          },
+        ],
+        order: [[BienTheSanPhamModel, "gia", sortOrder]], // ✅ sắp xếp theo giá ở bảng biến thể
+        limit: limit,
+        offset: offset,
+      });
 
-
-
-// Lấy tất cả sản phẩm có an_hien = 2 Là Xe máy
-// app.get("/api/san_pham/an_hien_2", async (req, res) => {
-//   try {
-//     const sp_arr = await PhuTungXeModel.findAll({
-//       where: { an_hien: 2 },
-//       order: [["gia", "ASC"]], // sắp xếp theo giá tăng dần
-//       include: [
-//         {
-//           model: LoaiXeModel,
-//           attributes: ["ten_loai"], // lấy tên loại xe
-//         },
-//       ],
-//     });
-
-//     res.json(sp_arr);
-//   } catch (error) {
-//     console.error("Lỗi khi lấy sản phẩm:", error);
-//     res.status(500).json({ message: "Lỗi server", error: error.message });
-//   }
-// });
-
-
-app.get("/api/san_pham/an_hien_2", async (req, res) => {
-  try {
-    // Lấy page & limit từ query, có mặc định
-    let page = parseInt(req.query.page) || 1; // trang hiện tại
-    let limit = parseInt(req.query.limit) || 8; // số sản phẩm mỗi trang
-    let offset = (page - 1) * limit;
-
-    // Lấy danh sách sản phẩm kèm tổng số sản phẩm
-    const { rows: sp_arr, count: total } = await PhuTungXeModel.findAndCountAll({
-      where: { an_hien: 2 },
-      include: [
-        {
-          model: LoaiXeModel,
-          attributes: ["ten_loai"], // lấy tên loại xe
+      res.json({
+        data: sp_arr,
+        pagination: {
+          total,               // tổng số sản phẩm
+          page,                // trang hiện tại
+          limit,               // số sản phẩm mỗi trang
+          totalPages: Math.ceil(total / limit), // tổng số trang
         },
-        {
-          model: BienTheSanPhamModel,
-          attributes: ["mau_sac", "gia", "so_luong", "hinh"], // lấy thông tin biến thể
-        },
-      ],
-      order: [[BienTheSanPhamModel, "gia", "ASC"]], // ✅ sắp xếp theo giá ở bảng biến thể
-      limit: limit,
-      offset: offset,
-    });
-
-    res.json({
-      data: sp_arr,
-      pagination: {
-        total,               // tổng số sản phẩm
-        page,                // trang hiện tại
-        limit,               // số sản phẩm mỗi trang
-        totalPages: Math.ceil(total / limit), // tổng số trang
-      },
-    });
-  } catch (error) {
-    console.error("Lỗi khi lấy sản phẩm:", error);
-    res.status(500).json({ message: "Lỗi server", error: error.message });
-  }
-});
+      });
+    } catch (error) {
+      console.error("Lỗi khi lấy sản phẩm:", error);
+      res.status(500).json({ message: "Lỗi server", error: error.message });
+    }
+  });
 
 // Lấy tất cả sản phẩm có an_hien = 3 (Ô tô) kèm phân trang
 app.get("/api/san_pham/an_hien_3", async (req, res) => {
   try {
-    // Lấy query page & limit từ client
+    // Lấy query page, limit, sortOrder từ client
     let page = parseInt(req.query.page) || 1; // trang hiện tại
     let limit = parseInt(req.query.limit) || 8; // số sản phẩm mỗi trang
     let offset = (page - 1) * limit;
+    const sortOrder = req.query.sortOrder === "DESC" ? "DESC" : "ASC"; // sắp xếp tăng/giảm
 
-    // Đếm tổng số sản phẩm để tính totalPages
-    const totalItems = await PhuTungXeModel.count({ where: { an_hien: 3 } });
-    const totalPages = Math.ceil(totalItems / limit);
-
-    // Lấy danh sách sản phẩm có phân trang
-    const sp_arr = await PhuTungXeModel.findAll({
-      where: { an_hien: 3 },
+    // Lấy danh sách sản phẩm kèm tổng số sản phẩm
+    const { rows: sp_arr, count: total } = await PhuTungXeModel.findAndCountAll({
+      where: { an_hien: 3 }, // 🔹 chỉ lấy sản phẩm ô tô
       include: [
         {
           model: LoaiXeModel,
@@ -237,18 +211,19 @@ app.get("/api/san_pham/an_hien_3", async (req, res) => {
           attributes: ["mau_sac", "gia", "so_luong", "hinh"], // lấy thông tin biến thể
         },
       ],
-      order: [[BienTheSanPhamModel, "gia", "ASC"]], // ✅ sắp xếp theo giá của bảng biến thể
+      order: [[BienTheSanPhamModel, "gia", sortOrder]], // ✅ sắp xếp theo giá biến thể
       limit: limit,
       offset: offset,
     });
 
+    // Trả về dữ liệu JSON kèm phân trang
     res.json({
       data: sp_arr,
       pagination: {
-        totalItems,
-        page,
-        limit,
-        totalPages,
+        total,                     // tổng số sản phẩm
+        page,                      // trang hiện tại
+        limit,                     // số sản phẩm mỗi trang
+        totalPages: Math.ceil(total / limit), // tổng số trang
       },
     });
   } catch (error) {
@@ -256,6 +231,7 @@ app.get("/api/san_pham/an_hien_3", async (req, res) => {
     res.status(500).json({ message: "Lỗi server", error: error.message });
   }
 });
+
 
 // API lấy sản phẩm có phân trang
 app.get("/api/san_pham", async (req, res) => {
@@ -459,16 +435,21 @@ app.delete("/api/cart/delete/:id", async (req, res) => {
 
 // ✅ XÓA TOÀN BỘ GIỎ HÀNG CỦA 1 USER (sau khi đặt hàng)
 // DELETE /api/cart
-app.delete("/api/cart", async (req, res) => {
-  const idUser = req.session.user?.id || 10; // Hoặc lấy từ query nếu muốn
+app.delete("/api/cart/:id_user", async (req, res) => {
   try {
-    await GioHangModel.destroy({ where: { id_user: idUser } });
-    return res.json({ success: true, message: "Giỏ hàng đã được xóa" });
+    const { id_user } = req.params;
+    
+    await CartModel.destroy({
+      where: { id_user }
+    });
+
+    res.json({ success: true, message: "Giỏ hàng đã được xóa!" });
   } catch (err) {
-    console.error(err);
-    return res.status(500).json({ success: false, message: "Lỗi server" });
+    res.status(500).json({ success: false, error: err.message });
   }
 });
+
+
 //gom giỏ hàng từ guest sang user
 app.post("/api/cart/merge", async (req, res) => {
   const { guestId, userId } = req.body;
@@ -848,9 +829,6 @@ app.get("/api/users/:id", async (req, res) => {
   }
 });
 
-
-
-// app.post("/api/donhang", async (req, res) => {
 //   const {
 //     ho_ten,
 //     dia_chi,
@@ -952,29 +930,29 @@ app.post("/api/orders/create", async (req, res) => {
   }
 
   try {
-    const finalUserId = id_user || 10; // Nếu chưa login, dùng user 10 (khách)
+    const finalUserId = id_user ? id_user : 10;  // luôn lấy đúng user đăng nhập
+
     const tong_tien = items.reduce((sum, item) => sum + item.gia * item.so_luong, 0);
 
-    // 1️⃣ Tạo đơn hàng
     const donHang = await DonHangModel.create({
       ten_nguoi_nhan,
       dia_chi,
       dien_thoai,
       ghi_chu: ghi_chu || null,
-      id_user: id_user || null,
+      id_user: finalUserId, // <--- QUAN TRỌNG
       status: phuong_thuc === "online" ? "Chờ thanh toán" : "Chờ xác nhận",
       phuong_thuc: phuong_thuc || "cod",
     });
 
-    // 2️⃣ Tạo chi tiết đơn hàng
     const chiTietData = items.map(item => ({
       id_don_hang: donHang.id,
       id_san_pham: item.id_san_pham,
       so_luong: item.so_luong || 1,
       gia: Math.round(item.gia),
     }));
+
     await ChiTietDonHangModel.bulkCreate(chiTietData);
-    // 4️⃣ Trả về kết quả
+
     res.status(201).json({
       success: true,
       don_hang_id: donHang.id,
@@ -987,6 +965,7 @@ app.post("/api/orders/create", async (req, res) => {
 });
 
 
+
 // routes/orders.js
 router.post('/update-status', async (req, res) => {
   const { id, status } = req.body;
@@ -997,6 +976,8 @@ router.post('/update-status', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+
 
 
 // API: Tạo URL thanh toán VNPay (ẢO)
@@ -1046,94 +1027,103 @@ app.post("/api/vnpay/create_payment", (req, res) => {
 app.get("/api/orders", async (req, res) => {
   const { id_user } = req.query;
 
-  if (!id_user) return res.json([]);
-
-  const orders = await DonHangModel.findAll({
-    where: { id_user },
-    order: [["id", "DESC"]],
-  });
-
-  res.json(orders);
-});
-
-//API xem chi tiết 1 đơn hàng
-app.get("/api/orders/:id", async (req, res) => {
-  const { id } = req.params;
-
   try {
-    const order = await DonHangModel.findOne({
-      where: { id },
-      include: [{ model: ChiTietDonHangModel }],
+    const orders = await DonHangModel.findAll({
+      where: { id_user },
+      include: [{ model: ChiTietDonHangModel, as: "chi_tiet" }],
     });
 
-    if (!order) {
-      return res.status(404).json({ message: "Đơn hàng không tồn tại!" });
+    if (orders.length === 0) {
+      return res.status(404).json({ message: "Không có đơn hàng nào!" });
     }
 
-    res.json(order);
+    res.json(orders);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Lỗi server!" });
+    res.status(500).json({ error: err.message });
   }
 });
-//API hủy đơn hàng
-//Chỉ cho phép hủy nếu trạng thái là Chờ xác nhận hoặc Đang xử lý.
+// 
 app.put("/api/orders/cancel/:id", async (req, res) => {
   const { id } = req.params;
 
   try {
     const order = await DonHangModel.findByPk(id);
-
-    if (!order) return res.status(404).json({ message: "Không tìm thấy đơn hàng!" });
-
-    if (!["Chờ xác nhận", "Đang xử lý"].includes(order.status)) {
-      return res.status(400).json({ message: "Đơn hàng không thể hủy nữa!" });
+    if (!order) {
+      return res.status(404).json({ message: "Không tìm thấy đơn hàng!" });
     }
 
-    await order.update({ status: "Đã hủy" });
+    if (order.status === "canceled") {
+      return res.status(400).json({ message: "Đơn hàng này đã được hủy trước đó!" });
+    }
 
-    return res.json({ message: "Hủy đơn hàng thành công!" });
+    order.status = "canceled";
+    order.ly_do_huy = "Đã hủy";
+    await order.save();
 
+    console.log(`Đơn hàng #${id} đã được hủy.`);
+
+    res.status(200).json({ message: "Hủy đơn thành công", order });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Lỗi server!" });
+    res.status(500).json({ message: err.message });
   }
 });
-//API chuyển trạng thái đơn hàng (dành cho Admin)
-app.put("/api/orders/status/:id", async (req, res) => {
-  const { id } = req.params;
-  const { status } = req.body; // Chờ xác nhận / Đang xử lý / Đang giao / Đã nhận
 
+
+
+
+
+
+// === API LẤY DANH SÁCH BÌNH LUẬN ===
+app.get("/api/comments", async (req, res) => {
+  const { id_san_pham } = req.query;
+  if (!id_san_pham) {
+    return res.status(400).json({ message: "Thiếu id_san_pham" });
+  }
   try {
-    const order = await DonHangModel.findByPk(id);
-
-    if (!order) return res.status(404).json({ message: "Không tìm thấy đơn hàng!" });
-
-    await order.update({ status });
-
-    res.json({ message: "Cập nhật trạng thái thành công!" });
+    const dsBinhLuan = await BinhLuan.findAll({
+      where: { id_san_pham },
+      order: [["ngay_tao", "DESC"]],
+    });s
+    res.json(dsBinhLuan);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Lỗi server!" });
+    res.status(500).json({ message: "Lỗi server khi lấy bình luận" });
   }
 });
-//API đánh giá sản phẩm (khi đơn đã nhận)
-app.post("/api/orders/rate", async (req, res) => {
-  const { id_chi_tiet, sao, danh_gia } = req.body;
 
+app.post("/api/comments", async (req, res) => {
   try {
-    const item = await ChiTietDonHangModel.findByPk(id_chi_tiet);
+   const { id_user, id_san_pham, noi_dung } = req.body;
 
-    if (!item) return res.status(404).json({ message: "Không tìm thấy sản phẩm!" });
+if (!id_user || !id_san_pham || !noi_dung) {
+  return res.status(400).json({ message: "Thiếu dữ liệu cần thiết!" });
+}
 
-    await item.update({ sao, danh_gia });
+const userExists = await Users.findByPk(id_user);
+if (!userExists) {
+  return res.status(400).json({ message: "User không tồn tại" });
+}
 
-    res.json({ message: "Đánh giá thành công!" });
+const newComment = await BinhLuan.create({
+  id_user,
+  id_san_pham,
+  noi_dung,
+  ngay_tao: new Date(),
+  trang_thai: 1,
+});
+
+
+    res.status(201).json(newComment);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Lỗi server!" });
+    res.status(500).json({ message: "Lỗi server khi thêm bình luận" });
   }
 });
+
+
+
+
 
 
 
@@ -1141,3 +1131,4 @@ app.post("/api/orders/rate", async (req, res) => {
 app.listen(port, () => {
   console.log(`Server chạy tại http://localhost:${port}`);
 });
+//Đây là API Route kiểu Express + Sequelize

@@ -4,60 +4,54 @@ import Link from "next/link";
 export default function AddToCart() {
   const [cart, setCart] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  // useEffect(() => {
+  //   fetchCart(); // fetch lần đầu
+  //   const handleCartUpdated = () => {
+  //   };
+  //   window.addEventListener("cart-updated", handleCartUpdated);
+  //   return () => {
+  //     window.removeEventListener("cart-updated", handleCartUpdated);
+  //   };
+  // }, []);
 
-
-
-  useEffect(() => {
-  fetchCart(); // fetch lần đầu
-
-  const handleCartUpdated = () => {
-    fetchCart(); // fetch lại khi cart được cập nhật (xóa, đặt hàng)
-  };
-
-  window.addEventListener("cart-updated", handleCartUpdated);
-
-  return () => {
-    window.removeEventListener("cart-updated", handleCartUpdated);
-  };
-}, []);
-
+  
   // 🛒 Fetch giỏ hàng: DB nếu login, sessionStorage nếu chưa login
   const fetchCart = async () => {
-  setLoading(true);
-  try {
-    const user = typeof window !== "undefined"
-      ? JSON.parse(localStorage.getItem("user") || "null")
-      : null;
+    setLoading(true);
+    try {
+      const user = typeof window !== "undefined"
+        ? JSON.parse(localStorage.getItem("user") || "null")
+        : null;
 
-    // Nếu có user đăng nhập → lấy giỏ hàng DB theo user.id
-    if (user && user.id) {
-      const res = await fetch(`http://localhost:3000/api/cart?id_user=${user.id}`);
-      const data = await res.json();
-      setCart(Array.isArray(data) ? data : []);
-    } 
-    else {
-      // Nếu chưa đăng nhập → dùng id_user mặc định = 10
-      const res = await fetch(`http://localhost:3000/api/cart?id_user=10`);
-      const data = await res.json();
-
-      // Nếu DB của khách trống, thử lấy sessionStorage (nếu có)
-      if (Array.isArray(data) && data.length > 0) {
-        setCart(data);
-      } else {
-        const sessionCart =
-          typeof window !== "undefined"
-            ? JSON.parse(sessionStorage.getItem("cart") || "[]")
-            : [];
-        setCart(sessionCart);
+      // Nếu có user đăng nhập → lấy giỏ hàng DB theo user.id
+      if (user && user.id) {
+        const res = await fetch(`http://localhost:3000/api/cart?id_user=${user.id}`);
+        const data = await res.json();
+        setCart(Array.isArray(data) ? data : []);
       }
+      else {
+        // Nếu chưa đăng nhập → dùng id_user mặc định = 10
+        const res = await fetch(`http://localhost:3000/api/cart?id_user=10`);
+        const data = await res.json();
+
+        // Nếu DB của khách trống, thử lấy sessionStorage (nếu có)
+        if (Array.isArray(data) && data.length > 0) {
+          setCart(data);
+        } else {
+          const sessionCart =
+            typeof window !== "undefined"
+              ? JSON.parse(sessionStorage.getItem("cart") || "[]")
+              : [];
+          setCart(sessionCart);
+        }
+      }
+    } catch (err) {
+      console.error("🚨 Lỗi tải giỏ hàng:", err);
+      setCart([]);
+    } finally {
+      setLoading(false);
     }
-  } catch (err) {
-    console.error("🚨 Lỗi tải giỏ hàng:", err);
-    setCart([]);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
 
   useEffect(() => {
@@ -66,24 +60,24 @@ export default function AddToCart() {
 
   if (loading) return <p>Đang tải giỏ hàng...</p>;
   if (cart.length === 0)
-  return (
-    <div className="flex flex-col items-center justify-center py-20 text-center">
-      <span className="text-5xl mb-4">🛒</span>
-      <h1 className="text-3xl font-extrabold text-gray-800 mb-3">
-        Giỏ hàng trống
-      </h1>
-      <p className="text-gray-500 text-lg mb-6">
-        Hãy thêm sản phẩm yêu thích vào giỏ nhé!
-      </p>
-      
-      <a
-        href="/"
-        className="px-6 py-3 bg-blue-600 text-white rounded-xl shadow hover:bg-blue-700 transition duration-200"
-      >
-        Tiếp tục mua sắm
-      </a>
-    </div>
-  );
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center">
+        <span className="text-5xl mb-4">🛒</span>
+        <h1 className="text-3xl font-extrabold text-gray-800 mb-3">
+          Giỏ hàng trống
+        </h1>
+        <p className="text-gray-500 text-lg mb-6">
+          Hãy thêm sản phẩm yêu thích vào giỏ nhé!
+        </p>
+
+        <a
+          href="/"
+          className="px-6 py-3 bg-blue-600 text-white rounded-xl shadow hover:bg-blue-700 transition duration-200"
+        >
+          Tiếp tục mua sắm
+        </a>
+      </div>
+    );
 
 
   const tongTien = cart.reduce(
@@ -92,17 +86,21 @@ export default function AddToCart() {
   );
 
   // Xóa sản phẩm
-const handleDelete = async (id: number) => {
+  const handleDelete = async (id: number) => {
   try {
     const res = await fetch(`http://localhost:3000/api/cart/delete/${id}`, {
       method: "DELETE",
     });
 
     if (res.ok) {
-      // ✅ Cập nhật UI
-      setCart((prev) => prev.filter((item) => item.id !== id));
+      // Xóa item trong state và localStorage
+      setCart((prev) => {
+        const newCart = prev.filter((item) => item.id !== id && item.id_san_pham !== id);
+        localStorage.setItem("cart", JSON.stringify(newCart));
+        return newCart;
+      });
 
-      // ✅ Thông báo cập nhật giỏ lên header
+      // Thông báo cập nhật giỏ lên header (nếu cần)
       window.dispatchEvent(new Event("cart-updated"));
     } else {
       console.log("❌ Xóa thất bại");
@@ -112,43 +110,44 @@ const handleDelete = async (id: number) => {
   }
 };
 
+
   // Chỉnh số lượng
   const handleQuantityChange = async (id: number, newQty: number) => {
-  if (newQty < 1) return;
+    if (newQty < 1) return;
 
-  try {
-    const user = typeof window !== "undefined"
-      ? JSON.parse(localStorage.getItem("user") || "null")
-      : null;
+    try {
+      const user = typeof window !== "undefined"
+        ? JSON.parse(localStorage.getItem("user") || "null")
+        : null;
 
-    if (user) {
-      // Update DB
-      const res = await fetch(`http://localhost:3000/api/cart/update/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ so_luong: newQty }),
-      });
-      if (res.ok) {
-        // Cập nhật local state luôn để UI phản hồi ngay
-        setCart((prev) =>
-          prev.map((item) =>
-            (item.id || item.id_san_pham) === id ? { ...item, so_luong: newQty } : item
-          )
+      if (user) {
+        // Update DB
+        const res = await fetch(`http://localhost:3000/api/cart/update/${id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ so_luong: newQty }),
+        });
+        if (res.ok) {
+          // Cập nhật local state luôn để UI phản hồi ngay
+          setCart((prev) =>
+            prev.map((item) =>
+              (item.id || item.id_san_pham) === id ? { ...item, so_luong: newQty } : item
+            )
+          );
+        }
+      } else {
+        // Update sessionStorage
+        const sessionCart = JSON.parse(sessionStorage.getItem("cart") || "[]");
+        const newCart = sessionCart.map((item: any) =>
+          item.id_san_pham === id ? { ...item, so_luong: newQty } : item
         );
+        sessionStorage.setItem("cart", JSON.stringify(newCart));
+        setCart(newCart); // cập nhật state luôn
       }
-    } else {
-      // Update sessionStorage
-      const sessionCart = JSON.parse(sessionStorage.getItem("cart") || "[]");
-      const newCart = sessionCart.map((item: any) =>
-        item.id_san_pham === id ? { ...item, so_luong: newQty } : item
-      );
-      sessionStorage.setItem("cart", JSON.stringify(newCart));
-      setCart(newCart); // cập nhật state luôn
+    } catch (err) {
+      console.error(err);
     }
-  } catch (err) {
-    console.error(err);
-  }
-};
+  };
 
   return (
     <div className="max-w-5xl mx-auto my-10 bg-white p-6 rounded-xl shadow-lg">
@@ -195,11 +194,13 @@ const handleDelete = async (id: number) => {
             </button>
           </div>
           <button
+            type="button"
             className="text-red-600 hover:underline font-semibold transition-colors"
             onClick={() => handleDelete(item.id || item.id_san_pham)}
           >
             Xóa
           </button>
+
         </div>
       ))}
 
