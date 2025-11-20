@@ -39,7 +39,7 @@ export default function LoginPage() {
 
     // 🔹 Lưu thông tin user vào localStorage
     localStorage.setItem("user", JSON.stringify(data.user));
-    localStorage.setItem("id_user", data.user.id.toString());
+    // localStorage.setItem("id_user", data.user.id.toString());
 
     // ✅ Gộp giỏ hàng tạm vào DB
     try {

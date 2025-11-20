@@ -228,8 +228,7 @@ export default function NguoiDungPage() {
 
               <button
                 onClick={() => router.push("/don-hang-cua-toi")}
-                className="flex-1 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-semibold py-3 rounded-lg shadow-md transition-all"
-              >
+                className="flex-1 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-semibold py-3 rounded-lg shadow-md transition-all">
                 Đơn hàng của tôi
               </button>
             </div>

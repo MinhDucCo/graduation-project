@@ -1023,26 +1023,45 @@ app.post("/api/vnpay/create_payment", (req, res) => {
 });
 
 //------------------------------------------------------------- API QUẢN LÝ ĐƠN HÀNG CHO ÚSER----------------------------------------------
-//API lấy danh sách đơn hàng của user
+// API lấy danh sách đơn hàng của user
 app.get("/api/orders", async (req, res) => {
   const { id_user } = req.query;
 
   try {
     const orders = await DonHangModel.findAll({
       where: { id_user },
-      include: [{ model: ChiTietDonHangModel, as: "chi_tiet" }],
+      include: [
+        {
+          model: ChiTietDonHangModel,
+          as: "chi_tiet",
+          include: [
+            {
+              model: PhuTungXeModel,               // lấy tên sản phẩm
+              attributes: ["ten_san_pham", "mo_ta"],
+            },
+            {
+              model: BienTheSanPhamModel,          // lấy hình ảnh, giá, màu
+              attributes: ["hinh", "mau_sac", "gia"],
+            },
+          ],
+        },
+      ],
+      order: [["id", "DESC"]], // sắp xếp từ đơn mới nhất xuống
     });
 
-    if (orders.length === 0) {
+    if (!orders || orders.length === 0) {
       return res.status(404).json({ message: "Không có đơn hàng nào!" });
     }
 
     res.json(orders);
   } catch (err) {
+    console.error("Lỗi lấy danh sách đơn hàng:", err);
     res.status(500).json({ error: err.message });
   }
 });
-// 
+
+
+
 app.put("/api/orders/cancel/:id", async (req, res) => {
   const { id } = req.params;
 
@@ -1080,11 +1099,21 @@ app.get("/api/comments", async (req, res) => {
   if (!id_san_pham) {
     return res.status(400).json({ message: "Thiếu id_san_pham" });
   }
+
   try {
     const dsBinhLuan = await BinhLuan.findAll({
-      where: { id_san_pham },
+      where: { id_san_pham, trang_thai: 1 },
       order: [["ngay_tao", "DESC"]],
-    });s
+      attributes: ["id", "id_user", "id_san_pham", "noi_dung", "ngay_tao", "rating", "trang_thai"],
+      include: [
+        {
+          model: Users,
+          as: "user",
+          attributes: ["ho_ten"],
+        }
+      ],
+    });
+
     res.json(dsBinhLuan);
   } catch (err) {
     console.error(err);
@@ -1092,34 +1121,36 @@ app.get("/api/comments", async (req, res) => {
   }
 });
 
+
+
+
+
 app.post("/api/comments", async (req, res) => {
+  const { id_user, id_san_pham, noi_dung, rating } = req.body;
+
+  // Kiểm tra dữ liệu bắt buộc
+  if (!id_user || !id_san_pham || !noi_dung || !rating) {
+    return res.status(400).json({ message: "Thiếu dữ liệu bình luận hoặc rating" });
+  }
+
   try {
-   const { id_user, id_san_pham, noi_dung } = req.body;
+    const newComment = await BinhLuan.create({
+      id_user,
+      id_san_pham,
+      noi_dung,
+      rating,
+      trang_thai: 1, // 1 = hiển thị, 0 = ẩn (mặc định cho bình luận mới)
+      ngay_tao: new Date(),
+    });
 
-if (!id_user || !id_san_pham || !noi_dung) {
-  return res.status(400).json({ message: "Thiếu dữ liệu cần thiết!" });
-}
-
-const userExists = await Users.findByPk(id_user);
-if (!userExists) {
-  return res.status(400).json({ message: "User không tồn tại" });
-}
-
-const newComment = await BinhLuan.create({
-  id_user,
-  id_san_pham,
-  noi_dung,
-  ngay_tao: new Date(),
-  trang_thai: 1,
-});
-
-
-    res.status(201).json(newComment);
+    res.json(newComment);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Lỗi server khi thêm bình luận" });
+    res.status(500).json({ message: "Lỗi server khi tạo bình luận" });
   }
 });
+
+
 
 
 

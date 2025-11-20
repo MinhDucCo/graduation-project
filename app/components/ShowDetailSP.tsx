@@ -4,14 +4,18 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 export default function ShowDetailSP({ sp }: { sp: ISanPham }) {
+  const router = useRouter();
   const [selectedVariant, setSelectedVariant] = useState<IBienThe | undefined>(
     sp.bien_the_san_phams?.[0]
   );
+  // State bình luận
   const [binhLuanList, setBinhLuanList] = useState<any[]>([]);
   const [noiDung, setNoiDung] = useState("");
+  const [rating, setRating] = useState(0); // ⭐ số sao
   const [loading, setLoading] = useState(true);
+  const [canReview, setCanReview] = useState(true); // kiểm tra user đã mua hàng để true là có thể bình luận false không cho binh luận khi chưa nhận hàng
 
-  const router = useRouter();
+
 
   // ✅ Hàm hiệu ứng bay vào giỏ hàng
   const animateToCart = () => {
@@ -55,9 +59,7 @@ export default function ShowDetailSP({ sp }: { sp: ISanPham }) {
     "https://placehold.co/400x300?text=Hinh+Phu+2",
     selectedVariant?.hinh_phu3 ||
     "https://placehold.co/400x300?text=Hinh+Phu+3",
-  ];
-
-  const [hinhChinh, setHinhChinh] = useState<string>(hinhPhu[0]);
+  ]; const [hinhChinh, setHinhChinh] = useState<string>(hinhPhu[0]);
 
   useEffect(() => {
     setHinhChinh(hinhPhu[0]);
@@ -101,6 +103,47 @@ export default function ShowDetailSP({ sp }: { sp: ISanPham }) {
 
     mergeCartToDB();
   }, []);
+
+  // ✅ Kiểm tra user đã mua và nhận hàng sản phẩm này
+  // useEffect(() => {
+  //   const checkPurchased = async () => {
+  //     const user = JSON.parse(localStorage.getItem("user") || "null");
+  //     if (!user) return;
+
+  //     try {
+  //       const res = await fetch(`http://localhost:3000/api/orders?userId=${user.id}&status=delivered`);
+  //       const orders = await res.json();
+  //       const purchased = orders.some((order: any) =>
+  //         order.items.some((item: any) => item.id_san_pham === sp.ma_san_pham)
+  //       );
+
+  //       setCanReview(purchased);
+  //     } catch (err) {
+  //       console.error("Lỗi kiểm tra đơn hàng:", err);
+  //     }
+  //   };
+
+  //   checkPurchased();
+  // }, [sp.ma_san_pham]);
+
+  // 🟢 Lấy danh sách bình luận khi vào trang
+  useEffect(() => {
+    async function fetchBinhLuan() {
+      try {
+        const res = await fetch(
+          `http://localhost:3000/api/comments?id_san_pham=${sp.ma_san_pham}`
+        );
+        const data = await res.json();
+        setBinhLuanList(data);
+      } catch (err) {
+        console.error("Lỗi khi tải bình luận:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchBinhLuan();
+  }, [sp.ma_san_pham]);
+
 
   // 🛒 Thêm vào giỏ hàng
   const handleAddToCart = async () => {
@@ -150,35 +193,52 @@ export default function ShowDetailSP({ sp }: { sp: ISanPham }) {
     }
 
 
+
+
     // 🟢 Lấy danh sách bình luận khi vào trang
-  //   useEffect(() => {
-  //   async function fetchBinhLuan() {
-  //     try {
-  //       const res = await fetch(
-  //         `http://localhost:3000/api/comments?id_san_pham=${sp.ma_san_pham}`
-  //       );
-  //       const data = await res.json();
-  //       setBinhLuanList(data);
-  //     } catch (err) {
-  //       console.error("Lỗi khi tải bình luận:", err);
-  //     } finally {
-  //       setLoading(false);
-  //     }
-  //   }
-  //   fetchBinhLuan();
-  // }, [sp.ma_san_pham]);
+    //   useEffect(() => {
+    //   async function fetchBinhLuan() {
+    //     try {
+    //       const res = await fetch(
+    //         `http://localhost:3000/api/comments?id_san_pham=${sp.ma_san_pham}`
+    //       );
+    //       const data = await res.json();
+    //       setBinhLuanList(data);
+    //     } catch (err) {
+    //       console.error("Lỗi khi tải bình luận:", err);
+    //     } finally {
+    //       setLoading(false);
+    //     }
+    //   }
+    //   fetchBinhLuan();
+    // }, [sp.ma_san_pham]);
   };
-  // // 🟢 Gửi bình luận mới
+  // ✅ Gửi bình luận kèm rating
   async function handleSubmitBinhLuan(e: React.FormEvent) {
     e.preventDefault();
-    const idUser = localStorage.getItem("user_id");
-    if (!idUser) {
+
+    const user = JSON.parse(localStorage.getItem("user") || "null");
+    if (!user) {
       alert("Bạn cần đăng nhập để bình luận!");
       return;
     }
+    const idUser = user.id;
+
+
 
     if (!noiDung.trim()) {
       alert("Vui lòng nhập nội dung bình luận!");
+      return;
+    }
+
+    // Bỏ check canReview khi test
+    if (!canReview) {
+      alert("Bạn chỉ có thể bình luận sau khi nhận hàng!");
+      return;
+    }
+
+    if (rating === 0) {
+      alert("Vui lòng chọn số sao!");
       return;
     }
 
@@ -187,28 +247,73 @@ export default function ShowDetailSP({ sp }: { sp: ISanPham }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          id_user: idUser,
-          id_san_pham: sp.ma_san_pham, // 🔹 dùng mã sản phẩm
+          id_user: idUser, // ✅ id thực
+          id_san_pham: Number(sp.ma_san_pham),
           noi_dung: noiDung,
+          rating: rating,
+          trang_thai: 1,
+          ngay_tao: new Date(),
         }),
       });
-      console.log("Gửi bình luận:", {
-  id_user: idUser,
-  id_san_pham: sp.ma_san_pham,
-  noi_dung: noiDung,
-});
+      console.log("Gửi bình luận với id_user:", idUser);
 
 
-        
-
-      // ✅ Cập nhật giao diện bình luận mới
-      setNoiDung("");
       const newBinhLuan = await res.json();
       setBinhLuanList((prev) => [newBinhLuan, ...prev]);
+      setNoiDung("");
+      setRating(0);
     } catch (err) {
       console.error("Lỗi gửi bình luận:", err);
     }
   }
+
+
+
+
+  // 🟢 Mua Ngay → thêm sản phẩm rồi chuyển Checkout
+  const handleBuyNow = async () => {
+    if (!selectedVariant) {
+      alert("Vui lòng chọn màu sắc sản phẩm!");
+      return;
+    }
+
+    const user =
+      typeof window !== "undefined"
+        ? JSON.parse(localStorage.getItem("user") || "null")
+        : null;
+
+    const newItem = {
+      ten_san_pham: sp.ten_san_pham,
+      gia: selectedVariant.gia,
+      id_user: user ? user.id : 10,
+      id_san_pham: sp.ma_san_pham,
+      so_luong: 1,
+      hinh: selectedVariant.hinh,
+      mau_sac: selectedVariant.mau_sac,
+    };
+
+    try {
+      const res = await fetch("http://localhost:3000/api/cart/add", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newItem),
+      });
+
+      const result = await res.json();
+      if (!res.ok) {
+        alert("❌ Thêm thất bại: " + result.message);
+        return;
+      }
+
+      window.dispatchEvent(new Event("cart-updated"));
+
+      // Chuyển sang Checkout
+      router.push("/Checkout");
+    } catch (err) {
+      console.error(err);
+      alert("Không thể thêm vào giỏ hàng!");
+    }
+  };
 
 
   return (
@@ -290,51 +395,93 @@ export default function ShowDetailSP({ sp }: { sp: ISanPham }) {
               🛒 Thêm vào giỏ hàng
             </button>
 
-            <button className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold px-6 py-3 rounded-xl transition duration-300 flex items-center justify-center gap-2">
+            <button
+              onClick={handleBuyNow}
+              className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold px-6 py-3 rounded-xl"
+            >
               Mua Ngay
             </button>
+
           </div>
         </div>
       </div>
-       <div className="bg-white rounded-xl shadow p-6 mt-6">
-      <h2 className="text-xl font-bold mb-4">Bình luận sản phẩm</h2>
+      <div className="bg-white rounded-xl shadow p-6 mt-6">
+        <h2 className="text-xl font-bold mb-4">Bình luận sản phẩm</h2>
 
-      {/* 🔹 Form nhập bình luận */}
-      <form onSubmit={handleSubmitBinhLuan} className="mb-6">
-        <textarea
-          value={noiDung}
-          onChange={(e) => setNoiDung(e.target.value)}
-          placeholder="Nhập bình luận của bạn..."
-          className="w-full p-3 border rounded-lg focus:outline-none focus:ring focus:ring-blue-300"
-          rows={3}
-        />
-        <button
-          type="submit"
-          className="mt-2 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg"
-        >
-          Gửi bình luận
-        </button>
-      </form>
+        {/* 🔹 Form nhập bình luận */}
+        {canReview ? (
+          <form onSubmit={handleSubmitBinhLuan} className="mb-6">
+            <textarea
+              value={noiDung}
+              onChange={(e) => setNoiDung(e.target.value)}
+              placeholder="Nhập bình luận của bạn..."
+              className="w-full p-3 border rounded-lg focus:outline-none focus:ring focus:ring-blue-300"
+              rows={3}
+            />
 
-      {/* 🔹 Hiển thị danh sách bình luận */}
-      {loading ? (
-        <p>Đang tải bình luận...</p>
-      ) : binhLuanList.length > 0 ? (
-        <div className="space-y-3">
-          {binhLuanList.map((bl) => (
-            <div key={bl.id} className="border-b pb-2">
-              <p className="font-semibold text-gray-800">Người dùng #{bl.id_user}</p>
-              <p className="text-gray-600">{bl.noi_dung}</p>
-              <p className="text-xs text-gray-400">{new Date(bl.ngay_tao).toLocaleString()}</p>
+            {/* ⭐ Chọn số sao */}
+            <div className="flex gap-1 mt-2">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <span
+                  key={star}
+                  className={`cursor-pointer text-xl ${star <= rating ? "text-yellow-400" : "text-gray-300"}`}
+                  onClick={() => setRating(star)}
+                >
+                  ★
+                </span>
+              ))}
             </div>
-          ))}
-        </div>
-      ) : (
-        <p>Chưa có bình luận nào.</p>
-      )}
-    </div>
+
+
+            <button
+              type="submit"
+              className="mt-2 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg"
+            >
+              Gửi bình luận
+            </button>
+          </form>
+        ) : (
+          <p className="text-gray-500 mb-4">Bạn chỉ có thể bình luận sau khi nhận hàng sản phẩm này.</p>
+        )}
+
+
+        {/* 🔹 Hiển thị danh sách bình luận */}
+
+        {loading ? (
+          <p>Đang tải bình luận...</p>
+        ) : binhLuanList.length > 0 ? (
+          <div className="space-y-3">
+            {binhLuanList.map((bl) => (
+              <div key={bl.id} className="border-b pb-1">
+                <p className="font-semibold">
+                  {bl.user?.ho_ten || `Người dùng #${bl.id_user}`}
+                </p>
+
+
+                {/* ⭐ Hiển thị rating */}
+                <p className="flex gap-1">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <span key={star} className={star <= bl.rating ? "text-yellow-400" : "text-gray-300"}>
+                      ★
+                    </span>
+                  ))}
+                </p>
+
+                <p className="text-gray-600">{bl.noi_dung}</p>
+                <p className="text-xs text-gray-400">{new Date(bl.ngay_tao).toLocaleString()}</p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p>Chưa có bình luận nào.</p>
+        )}
+      </div>
     </div>
 
-    
   );
 }
+
+// if (!canReview) {
+//   alert("Bạn chỉ có thể bình luận sau khi nhận hàng sản phẩm này!");
+//   return;
+// }

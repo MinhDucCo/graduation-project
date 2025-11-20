@@ -65,9 +65,6 @@ export default function DonHangCuaToi() {
     }
   };
 
-
-
-
   if (loading) return <p className="text-center mt-10">Đang tải đơn hàng...</p>;
 
   if (!orders.length)
@@ -113,16 +110,23 @@ export default function DonHangCuaToi() {
             <div className="mt-4 border-t pt-3">
               <h3 className="font-semibold mb-3 text-gray-700">Chi tiết sản phẩm</h3>
               {order.chi_tiet?.map((ct: any) => (
-                <div
-                  key={ct.id_chi_tiet}
-                  className="flex justify-between border-b py-2 last:border-b-0"
-                >
-                  <div className="text-gray-600">
-                    <p><strong>ID sản phẩm:</strong> {ct.id_san_pham}</p>
-                    <p><strong>Số lượng:</strong> {ct.so_luong}</p>
+                <div key={ct.id_chi_tiet} className="flex justify-between py-2 border-b">
+
+                  <div className="flex gap-3">
+                    <img
+                      src={ct.bien_the_san_pham?.hinh}
+                      className="w-16 h-16 object-cover rounded"
+                    />
+
+                    <div>
+                      <p className="font-bold">{ct.phu_tung_xe?.ten_san_pham}</p>
+                      <p>Số lượng: {ct.so_luong}</p>
+                    </div>
                   </div>
-                  <p className="font-semibold text-gray-800">{ct.gia.toLocaleString()}₫</p>
+
+                  <p className="font-semibold">{ct.gia.toLocaleString()}₫</p>
                 </div>
+
               ))}
             </div>
 

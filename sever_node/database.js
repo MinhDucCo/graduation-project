@@ -246,10 +246,12 @@ const BinhLuan = sequelize.define('binh_luan', {
     type: DataTypes.TINYINT,
     defaultValue: 1, // 1 = hiển thị, 0 = ẩn
   },
+   rating: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
 }, {
   tableName: 'binh_luan',
   timestamps: false, // vì bạn tự quản lý `ngay_tao`
 });
+
 
 
 // Thiết lập quan hệ giữa các bảng
@@ -259,11 +261,38 @@ PhuTungXeModel.hasMany(BienTheSanPhamModel, { foreignKey: 'ma_san_pham' });
 BienTheSanPhamModel.belongsTo(PhuTungXeModel, { foreignKey: 'ma_san_pham' });
 DonHangModel.hasMany(ChiTietDonHangModel, { foreignKey: "id_don_hang", onDelete: "CASCADE" });
 ChiTietDonHangModel.belongsTo(DonHangModel, { foreignKey: "id_don_hang" });
+BinhLuan.belongsTo(Users, { foreignKey: "id_user", as: "user" });
+Users.hasMany(BinhLuan, { foreignKey: "id_user", as: "comments" });
+
+
+
+
 // === Quan hệ (Association) ===
 BinhLuan.associate = (models) => {
   BinhLuan.belongsTo(models.User, { foreignKey: 'id_user', as: 'user' });
   BinhLuan.belongsTo(models.SanPham, { foreignKey: 'id_san_pham', as: 'san_pham' });
 };
+
+// phu_tung_xe 1 - n bien_the_san_pham
+PhuTungXeModel.hasMany(BienTheSanPhamModel, { foreignKey: "ma_san_pham" });
+BienTheSanPhamModel.belongsTo(PhuTungXeModel, { foreignKey: "ma_san_pham" });
+
+// phu_tung_xe 1 - n chi_tiet_don_hang
+PhuTungXeModel.hasMany(ChiTietDonHangModel, { foreignKey: "id_san_pham" });
+ChiTietDonHangModel.belongsTo(PhuTungXeModel, { foreignKey: "id_san_pham" });
+
+// bien_the_san_pham 1 - n chi_tiet_don_hang (dùng targetKey)
+BienTheSanPhamModel.hasMany(ChiTietDonHangModel, {
+  foreignKey: "id_san_pham",
+  sourceKey: "ma_san_pham",
+});
+ChiTietDonHangModel.belongsTo(BienTheSanPhamModel, {
+  foreignKey: "id_san_pham",
+  targetKey: "ma_san_pham",
+});
+
+
+
 
 
 
