@@ -13,7 +13,7 @@ git add .
 git commit -m "Cập nhật giao diện người dùng"
 
 # 6️⃣ Đẩy nhánh mới lên GitHub
-git push -u origin feature/update-ui
+git push -u origin Phuong
 
 # ✅ (Tuỳ chọn) Nếu sau này bạn muốn cập nhật code mới nhất từ main
 git checkout main

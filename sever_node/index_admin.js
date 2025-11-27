@@ -34,22 +34,36 @@ const {
   BinhLuan
 } = require("./database.js");
 const app = express();
-const routes = require("./Routes.js");
-app.use("/api", routes);
+const port = 3000;
+
+// ✅ CORS phải được cấu hình TRƯỚC các middleware khác
+app.use(cors({
+  origin: "http://localhost:3100", // frontend (Next.js)
+  credentials: true, // cho phép cookie và session
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// ✅ Session middleware - phải sau CORS và express.json()
 app.use(
   session({
     secret: "supersecretkey",
     resave: false,
-    saveUninitialized: true,
-    cookie: { maxAge: 1000 * 60 * 60 * 24 }, // 1 ngày
+    saveUninitialized: false, // Chỉ lưu session khi có dữ liệu
+    cookie: { 
+      maxAge: 1000 * 60 * 60 * 24, // 1 ngày
+      httpOnly: true, // Bảo mật: không cho JS truy cập cookie
+      secure: false, // Đặt true nếu dùng HTTPS
+      sameSite: 'lax', // Cho phép gửi cookie từ cross-site requests
+    },
   })
 );
-const port = 3000;
-app.use(express.json());
-app.use(cors({
-  origin: "http://localhost:3100", // frontend (Next.js)
-  credentials: true, // cho phép cookie và session
-}));
+
+const routes = require("./Routes.js");
+app.use("/api", routes);
 app.use(
   helmet.contentSecurityPolicy({
     directives: {
@@ -72,6 +86,20 @@ app.get("/", (req, res) => {
       <li><a href="/api/sanpham/1">/api/sanpham/1</a> - Xem chi tiết sản phẩm</li>
     </ul>
   `);
+});
+
+// GET /api/loai_xe - Lấy tất cả loại xe
+app.get("/api/loai_xe", async (req, res) => {
+  try {
+    const loaiXeList = await LoaiXeModel.findAll({
+      where: { an_hien: 1 }, // chỉ lấy loại xe đang hiển thị
+      order: [["thu_tu", "ASC"], ["id", "ASC"]],
+    });
+    res.json(loaiXeList);
+  } catch (error) {
+    console.error("Lỗi lấy danh sách loại xe:", error);
+    res.status(500).json({ message: "Lỗi server", error: error.message });
+  }
 });
 
 app.get("/api/loai_xe/:id", async (req, res) => {
@@ -106,23 +134,56 @@ app.get("/api/phu_tung_xe", async (req, res) => {
 });
 // app.js hoặc routes/sanpham.js
 
+// 🔥 API: Lấy sản phẩm HOT (ví dụ: an_hien = 1) – trả đúng dạng { sp_hot: [...] }
 app.get("/api/sanpham_hot", async (req, res) => {
   try {
-    const sp_hot = await PhuTungXeModel.findAll({
-      include: [{
-        model: BienTheSanPhamModel,
-        attributes: ['mau_sac', 'gia', 'so_luong', 'hinh']
-      }],
-      where: { an_hien: 1 },
-      limit: 4
+    const sp_hot_raw = await PhuTungXeModel.findAll({
+      where: { an_hien: 1 },             // bạn có thể chỉnh điều kiện "hot" theo logic của mình
+      include: [
+        {
+          model: BienTheSanPhamModel,
+          attributes: ["mau_sac", "gia", "so_luong", "hinh"],
+        },
+        {
+          model: LoaiXeModel,
+          attributes: ["ten_loai"],
+        },
+      ],
+      order: [["ma_san_pham", "DESC"]],
+      limit: 4,
     });
 
-    res.json(sp_hot);
+    // Đảm bảo luôn trả về MẢNG sạch, không để FE phải đoán
+    const sp_hot = Array.isArray(sp_hot_raw)
+      ? sp_hot_raw.map((sp) => {
+          const data = sp.dataValues || sp;
+          const variants = Array.isArray(data.bien_the_san_phams)
+            ? data.bien_the_san_phams
+            : [];
+
+          const firstVariant = variants[0]?.dataValues || variants[0] || {};
+
+          return {
+            ma_san_pham: data.ma_san_pham,
+            ten_san_pham: data.ten_san_pham,
+            mo_ta: data.mo_ta || "",
+            loai_xe: data.loai_xe?.ten_loai || "",
+            gia: Number(firstVariant.gia || 0),
+            so_luong: Number(firstVariant.so_luong || 0),
+            hinh: firstVariant.hinh || "",
+            mau_sac: firstVariant.mau_sac || "",
+            bien_the_san_phams: variants,
+          };
+        })
+      : [];
+
+    res.json({ sp_hot }); // ⭐⭐ FE sẽ nhận { sp_hot: [...] } – không còn lỗi sp_hot.map
   } catch (error) {
     console.error("❌ Lỗi khi lấy sản phẩm hot:", error);
     res.status(500).json({ message: "Lỗi server", error: error.message });
   }
 });
+
 
 
 app.get("/api/sanpham/:ma_san_pham", async (req, res) => {
@@ -557,7 +618,20 @@ app.post("/api/auth/login", async (req, res) => {
       vai_tro: user.vai_tro,
     };
 
-    console.log("🔐 Đăng nhập thành công:", req.session.user);
+    // ✅ Đảm bảo session được lưu trước khi trả về response
+    await new Promise((resolve, reject) => {
+      req.session.save((err) => {
+        if (err) {
+          console.error('❌ Lỗi lưu session:', err);
+          reject(err);
+        } else {
+          console.log("🔐 Đăng nhập thành công, session đã được lưu:");
+          console.log("🔐 Session ID:", req.sessionID);
+          console.log("🔐 Session user:", req.session.user);
+          resolve();
+        }
+      });
+    });
 
     // ✅ GỘP GIỎ HÀNG user 10 → user.id
     const guestCart = await GioHangModel.findAll({ where: { id_user: 10 } });
@@ -1023,42 +1097,26 @@ app.post("/api/vnpay/create_payment", (req, res) => {
 });
 
 //------------------------------------------------------------- API QUẢN LÝ ĐƠN HÀNG CHO ÚSER----------------------------------------------
-// API lấy danh sách đơn hàng của user
+//API lấy danh sách đơn hàng của user
 app.get("/api/orders", async (req, res) => {
   const { id_user } = req.query;
 
   try {
     const orders = await DonHangModel.findAll({
       where: { id_user },
-      include: [
-        {
-          model: ChiTietDonHangModel,
-          as: "chi_tiet",
-          include: [
-            {
-              model: PhuTungXeModel,               // lấy tên sản phẩm
-              attributes: ["ten_san_pham", "mo_ta"],
-            },
-            {
-              model: BienTheSanPhamModel,          // lấy hình ảnh, giá, màu
-              attributes: ["hinh", "mau_sac", "gia"],
-            },
-          ],
-        },
-      ],
-      order: [["id", "DESC"]], // sắp xếp từ đơn mới nhất xuống
+      include: [{ model: ChiTietDonHangModel, as: "chi_tiet" }],
     });
 
-    if (!orders || orders.length === 0) {
+    if (orders.length === 0) {
       return res.status(404).json({ message: "Không có đơn hàng nào!" });
     }
 
     res.json(orders);
   } catch (err) {
-    console.error("Lỗi lấy danh sách đơn hàng:", err);
     res.status(500).json({ error: err.message });
   }
 });
+// 
 app.put("/api/orders/cancel/:id", async (req, res) => {
   const { id } = req.params;
 
@@ -1084,58 +1142,54 @@ app.put("/api/orders/cancel/:id", async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 });
+
+
 // === API LẤY DANH SÁCH BÌNH LUẬN ===
 app.get("/api/comments", async (req, res) => {
   const { id_san_pham } = req.query;
   if (!id_san_pham) {
     return res.status(400).json({ message: "Thiếu id_san_pham" });
   }
-
   try {
     const dsBinhLuan = await BinhLuan.findAll({
-      where: { id_san_pham, trang_thai: 1 },
+      where: { id_san_pham },
       order: [["ngay_tao", "DESC"]],
-      attributes: ["id", "id_user", "id_san_pham", "noi_dung", "ngay_tao", "trang_thai"],
-      include: [
-        {
-          model: Users,
-          as: "user",
-          attributes: ["ho_ten"],
-        }
-      ],
     });
-
     res.json(dsBinhLuan);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Lỗi server khi lấy bình luận" });
   }
 });
+
 app.post("/api/comments", async (req, res) => {
-  const { id_user, id_san_pham, noi_dung } = req.body; // Bỏ rating
-
-  // Kiểm tra dữ liệu bắt buộc
-  if (!id_user || !id_san_pham || !noi_dung) {
-    return res.status(400).json({ message: "Thiếu dữ liệu bình luận" });
-  }
-
   try {
-    const newComment = await BinhLuan.create({
-      id_user,
-      id_san_pham,
-      noi_dung,
-      trang_thai: 1, // 1 = hiển thị, 0 = ẩn
-      ngay_tao: new Date(),
-    });
+   const { id_user, id_san_pham, noi_dung } = req.body;
 
-    res.json(newComment);
-  } catch (err) {
-    console.error("Lỗi server khi tạo bình luận:", err);
-    res.status(500).json({ message: "Lỗi server khi tạo bình luận" });
-  }
+if (!id_user || !id_san_pham || !noi_dung) {
+  return res.status(400).json({ message: "Thiếu dữ liệu cần thiết!" });
+}
+
+const userExists = await Users.findByPk(id_user);
+if (!userExists) {
+  return res.status(400).json({ message: "User không tồn tại" });
+}
+
+const newComment = await BinhLuan.create({
+  id_user,
+  id_san_pham,
+  noi_dung,
+  ngay_tao: new Date(),
+  trang_thai: 1,
 });
 
 
+    res.status(201).json(newComment);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Lỗi server khi thêm bình luận" });
+  }
+});
 
 // ==================== ADMIN API ENDPOINTS ====================
 
@@ -1520,22 +1574,23 @@ app.get("/api/admin/orders", async (req, res) => {
       include: [
         {
           model: ChiTietDonHangModel,
-          as: "chi_tiet",
+          as: "chi_tiet",         // đúng alias bạn đã khai báo
           include: [
             {
-              model: PhuTungXeModel,
+              model: PhuTungXeModel, // nếu cần thông tin sản phẩm
             },
           ],
         },
       ],
     });
 
+    // Tính tổng tiền cho từng đơn
     const mapped = orders.map((order) => {
       const o = order.toJSON();
       const chiTiet = Array.isArray(o.chi_tiet) ? o.chi_tiet : [];
 
-      // ---- TÍNH TỔNG TIỀN ----
       const tong_tien = chiTiet.reduce((sum, ct) => {
+        // cố gắng lấy thanh_tien, nếu không có thì so_luong * don_gia/gia
         const qty = Number(ct.so_luong ?? 1);
         const price =
           Number(ct.thanh_tien) ||
@@ -1544,16 +1599,9 @@ app.get("/api/admin/orders", async (req, res) => {
         return sum + price;
       }, 0);
 
-      // ---- TÍNH TỔNG SỐ LƯỢNG ----
-      const tong_so_luong = chiTiet.reduce(
-        (sum, ct) => sum + Number(ct.so_luong ?? 0),
-        0
-      );
-
       return {
         ...o,
         tong_tien,
-        tong_so_luong,   // 👈 THÊM VÀO ĐÂY
       };
     });
 
@@ -1566,8 +1614,6 @@ app.get("/api/admin/orders", async (req, res) => {
     });
   }
 });
-
-
 
 
 // PUT /api/admin/orders/:id/status - Cập nhật trạng thái đơn hàng
@@ -1697,12 +1743,6 @@ app.put("/api/admin/settings", checkAdmin, async (req, res) => {
 
 
 
-
-
-
-
-
 app.listen(port, () => {
   console.log(`Server chạy tại http://localhost:${port}`);
 });
-//Đây là API Route kiểu Express + Sequelize

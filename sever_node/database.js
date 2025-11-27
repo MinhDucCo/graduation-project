@@ -40,14 +40,14 @@ const PhuTungXeModel = sequelize.define('phu_tung_xe', {
     type: DataTypes.STRING(100),
     allowNull: false
   },
-  id_loai_xe: {
-    type: DataTypes.INTEGER,
-    allowNull: false,
-    references: {
-      model: 'loai_xe',
-      key: 'id'
-    }
-  },
+  // id_loai_xe: {
+  //   type: DataTypes.INTEGER,
+  //   allowNull: false,
+  //   references: {
+  //     model: 'loai_xe',
+  //     key: 'id'
+  //   }
+  // },
   mo_ta: {
     type: DataTypes.TEXT,
     allowNull: true

@@ -1,94 +1,99 @@
-'use client';
-import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+"use client";
+import React, { useState } from "react";
+import { useRouter } from "next/navigation";
+
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [matKhau, setMatKhau] = useState('');
+  const [email, setEmail] = useState("");
+  const [matKhau, setMatKhau] = useState("");
   const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState<{ text: string; type: "error" | "success" } | null>(null);
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
-  e.preventDefault();
-  setLoading(true);
-  try {
-    const res = await fetch("http://localhost:3000/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, mat_khau: matKhau }),
-    });
-    console.log("[Login] response status:", res.status, res.statusText);
-    let data: any;
+    e.preventDefault();
+    setLoading(true);
+    setMessage(null); // reset message
+
     try {
-      data = await res.json();
-    } catch (err) {
-      const text = await res.text();
-      data = { message: text || "Phản hồi không hợp lệ từ server" };
-    }
+      const res = await fetch("http://localhost:3000/api/auth/login", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ email, mat_khau: matKhau }),
+  credentials: "include", // 🔥 BẮT BUỘC – GIỮ SESSION
+});
 
-    console.log("[Login] response body:", data);
-    if (!res.ok) {
-      alert(`❌ ${data.message || `Lỗi (${res.status})`}`);
-      return;
-    }
 
-    // 🔹 Kiểm tra dữ liệu user có tồn tại
-    if (!data.user) {
-      alert("❌ Dữ liệu người dùng không hợp lệ hoặc thiếu trong phản hồi!");
-      return;
-    }
-
-    // 🔹 Lưu thông tin user vào localStorage
-    localStorage.setItem("user", JSON.stringify(data.user));
-    // localStorage.setItem("id_user", data.user.id.toString());
-
-    // ✅ Gộp giỏ hàng tạm vào DB
-    try {
-      const sessionCart = JSON.parse(sessionStorage.getItem("cart") || "[]");
-
-      if (sessionCart.length > 0) {
-        console.log("🛒 Gộp giỏ hàng session vào DB:", sessionCart);
-        for (const item of sessionCart) {
-          await fetch("http://localhost:3000/api/cart/add", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              ...item,
-              id_user: data.user.id, // gán id_user thực
-            }),
-          });
-        }
-
-        // ✅ Xóa giỏ hàng tạm sau khi gộp
-        sessionStorage.removeItem("cart");
-        console.log("✅ Giỏ hàng session đã được gộp và xóa");
+      let data: any;
+      try {
+        data = await res.json();
+      } catch {
+        const text = await res.text();
+        data = { message: text || "Phản hồi không hợp lệ từ server" };
       }
-    } catch (mergeError) {
-      console.error("⚠️ Lỗi khi gộp giỏ hàng:", mergeError);
-    }
 
-    // 🔹 Kiểm tra vai trò: 1 = admin, còn lại là user
-    const vaiTro = Number(data.user.vai_tro);
-    if (vaiTro === 1) {
-      router.push("/Admin");
-    } else {
-      router.push("/User");
+      if (!res.ok) {
+        setMessage({ text: data.message || `Lỗi (${res.status})`, type: "error" });
+        return;
+      }
+
+      if (!data.user) {
+        setMessage({ text: "Dữ liệu người dùng không hợp lệ!", type: "error" });
+        return;
+      }
+
+      // 🔹 Lưu user
+      localStorage.setItem("user", JSON.stringify(data.user));
+      window.dispatchEvent(new Event("user-changed"));// thông báo thay đổi user
+      // 🔹 Gộp giỏ hàng tạm
+      try {
+        const sessionCart = JSON.parse(sessionStorage.getItem("cart") || "[]");
+
+        if (sessionCart.length > 0) {
+          for (const item of sessionCart) {
+            await fetch("http://localhost:3000/api/cart/add", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                ...item,
+                id_user: data.user.id,
+              }),
+            });
+          }
+
+          sessionStorage.removeItem("cart");
+        }
+      } catch (mergeError) {
+        console.error("⚠️ Lỗi khi gộp giỏ hàng:", mergeError);
+      }
+
+      //  Redirect về trang trước khi login 
+      const redirectUrl =
+        sessionStorage.getItem("redirectAfterLogin") || "/User";
+
+      sessionStorage.removeItem("redirectAfterLogin");
+
+      const vaiTro = Number(data.user.vai_tro);
+      if (vaiTro === 1) {
+        router.push("/Admin");
+      } else {
+        router.push(redirectUrl);
+      }
+    } catch (err) {
+      console.error("[Login] fetch error:", err);
+      setMessage({ text: "Lỗi hệ thống!", type: "error" });
+    } finally {
+      setLoading(false);
     }
-  } catch (err) {
-    console.error("[Login] fetch error:", err);
-    alert("❌ Lỗi hệ thống! Không thể kết nối đến máy chủ.");
-  } finally {
-    setLoading(false);
-  }
-};
+  };
+
   return (
     <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-blue-200 via-white to-blue-300 px-4">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-8 transform transition-all duration-300 hover:scale-[1.02]">
-        <h2 className="text-3xl font-bold text-center mb-8 text-blue-700 tracking-wide">
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-8">
+        <h2 className="text-3xl font-bold text-center mb-8 text-blue-700">
           Đăng nhập
         </h2>
 
         <form onSubmit={handleLogin} className="space-y-6">
-          {/* Email */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
               Email
@@ -99,11 +104,10 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none transition duration-200"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg"
             />
           </div>
 
-          {/* Mật khẩu */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
               Mật khẩu
@@ -114,21 +118,29 @@ export default function LoginPage() {
               value={matKhau}
               onChange={(e) => setMatKhau(e.target.value)}
               required
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none transition duration-200"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg"
             />
           </div>
+             {/* css báo lỗi*/}
+          {message && (
+            <p
+              className={`mt-2 text-red-600 text-center text-bg ${
+                message.type === "error" ? "text-red-600" : "text-green-600"
+              } font-bold`}
+            >
+              {message.text}
+            </p>
+          )}
 
-          {/* Nút đăng nhập */}
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-blue-600 text-white font-semibold py-3 rounded-lg hover:bg-blue-700 hover:shadow-lg transition duration-200 disabled:opacity-60"
+            className="w-full bg-blue-600 text-white font-semibold py-3 rounded-lg"
           >
             {loading ? "Đang đăng nhập..." : "Đăng nhập"}
           </button>
         </form>
 
-        {/* Liên kết phụ */}
         <div className="text-center mt-6 space-y-2">
           <p className="text-sm text-gray-600">
             Chưa có tài khoản?{" "}
@@ -152,5 +164,4 @@ export default function LoginPage() {
       </div>
     </div>
   );
-
 }

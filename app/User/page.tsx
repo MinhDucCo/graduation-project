@@ -1,6 +1,8 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import toast from "react-hot-toast";
+
 
 interface IUser {
   id: number;
@@ -45,48 +47,48 @@ export default function NguoiDungPage() {
     setLoading(false);
   }, [router]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user?.id) return;
+ const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  if (!user?.id) return;
 
-    try {
-      const res = await fetch('http://localhost:3000/api/users/profile', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: user.id,
-          ho_ten: formData.ho_ten,
-          dia_chi: formData.dia_chi,
-          dien_thoai: formData.dien_thoai,
-        }),
+  try {
+    const res = await fetch('http://localhost:3000/api/users/profile', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId: user.id,
+        ho_ten: formData.ho_ten,
+        dia_chi: formData.dia_chi,
+        dien_thoai: formData.dien_thoai,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (res.ok) {
+      localStorage.setItem('user', JSON.stringify(data.user));
+      setUser(data.user);
+      setFormData({
+        ho_ten: data.user.ho_ten || '',
+        dia_chi: data.user.dia_chi || '',
+        dien_thoai: data.user.dien_thoai || '',
       });
 
-      const data = await res.json();
+      setIsEditing(false);
 
-      if (res.ok) {
-        // 1. CẬP NHẬT localStorage ĐẦY ĐỦ
-        localStorage.setItem('user', JSON.stringify(data.user));
+      // 🔥 Toast thành công
+      toast.success("Cập nhật thành công!");
 
-        // 2. CẬP NHẬT state user
-        setUser(data.user);
-
-        // 3. CẬP NHẬT formData (để khi mở lại form vẫn đúng)
-        setFormData({
-          ho_ten: data.user.ho_ten || '',
-          dia_chi: data.user.dia_chi || '',
-          dien_thoai: data.user.dien_thoai || '',
-        });
-
-        setIsEditing(false);
-        alert('Cập nhật thành công!');
-      } else {
-        alert('Lỗi: ' + (data.message || 'Cập nhật thất bại'));
-      }
-    } catch (err) {
-      console.error(err);
-      alert('Lỗi kết nối server');
+      // Event cập nhật UI header
+      window.dispatchEvent(new Event("userUpdated"));
+    } else {
+      toast.error(data.message || "Cập nhật thất bại");
     }
-  };
+  } catch (err) {
+    console.error(err);
+    toast.error("Lỗi kết nối server");
+  }
+};
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -219,6 +221,7 @@ export default function NguoiDungPage() {
               <button
                 onClick={() => {
                   localStorage.removeItem("user");
+                  window.dispatchEvent(new Event("userUpdated"));
                   router.push("/");
                 }}
                 className="flex-1 bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white font-semibold py-3 rounded-lg shadow-md transition-all"

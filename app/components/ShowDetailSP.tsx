@@ -11,9 +11,9 @@ export default function ShowDetailSP({ sp }: { sp: ISanPham }) {
   // State bình luận
   const [binhLuanList, setBinhLuanList] = useState<any[]>([]);
   const [noiDung, setNoiDung] = useState("");
-  const [rating, setRating] = useState(0); // ⭐ số sao
   const [loading, setLoading] = useState(true);
-  const [canReview, setCanReview] = useState(true); // kiểm tra user đã mua hàng để true là có thể bình luận false không cho binh luận khi chưa nhận hàng
+  const [message, setMessage] = useState<{ text: string, type: "error" | "success" } | null>(null);
+
 
 
 
@@ -213,59 +213,111 @@ export default function ShowDetailSP({ sp }: { sp: ISanPham }) {
     //   fetchBinhLuan();
     // }, [sp.ma_san_pham]);
   };
-  // ✅ Gửi bình luận kèm rating
-  async function handleSubmitBinhLuan(e: React.FormEvent) {
+  // ✅ Gửi bình luận mới
+  // const handleSubmitBinhLuan = async (e: React.FormEvent) => {
+  //   e.preventDefault();
+
+  //   const user = JSON.parse(localStorage.getItem("user") || "null");
+  //   if (!user) {
+  //     console.log("Bạn cần đăng nhập để bình luận!");
+  //     return;
+  //   }
+
+  //   if (!noiDung.trim()) {
+  //     console.log("Vui lòng nhập nội dung bình luận!");
+  //     return;
+  //   }
+
+  //   try {
+  //     // Gửi bình luận lên server
+  //     const res = await fetch("http://localhost:3000/api/comments", {
+  //       method: "POST",
+  //       headers: { "Content-Type": "application/json" },
+  //       body: JSON.stringify({
+  //         id_user: user.id,
+  //         id_san_pham: Number(sp.ma_san_pham),
+  //         noi_dung: noiDung,
+  //         trang_thai: 1,
+  //         ngay_tao: new Date(),
+  //       }),
+  //     });
+
+  //     if (!res.ok) {
+  //       const errData = await res.json();
+  //       console.log("Có lỗi xảy ra khi gửi bình luận:", errData.message);
+  //       return;
+  //     }
+
+  //     // 🔹 Fetch lại toàn bộ bình luận để hiển thị tên người dùng đúng
+  //     const resBinhLuan = await fetch(`http://localhost:3000/api/comments?id_san_pham=${sp.ma_san_pham}`);
+  //     if (!resBinhLuan.ok) {
+  //       console.log("Không thể tải lại bình luận sau khi gửi");
+  //       return;
+  //     }
+  //     const data = await resBinhLuan.json();
+  //     setBinhLuanList(data);
+  //     setNoiDung("");
+
+  //   } catch (err) {
+  //     console.error("Lỗi gửi bình luận:", err);
+  //   }
+  // }
+  const handleSubmitBinhLuan = async (e: React.FormEvent) => {
     e.preventDefault();
+    setMessage(null); // reset thông báo
 
     const user = JSON.parse(localStorage.getItem("user") || "null");
     if (!user) {
-      alert("Bạn cần đăng nhập để bình luận!");
+      setMessage({ text: "Bạn cần đăng nhập để bình luận!", type: "error" });
       return;
     }
-    const idUser = user.id;
-
-
 
     if (!noiDung.trim()) {
-      alert("Vui lòng nhập nội dung bình luận!");
-      return;
-    }
-
-    // Bỏ check canReview khi test
-    if (!canReview) {
-      alert("Bạn chỉ có thể bình luận sau khi nhận hàng!");
-      return;
-    }
-
-    if (rating === 0) {
-      alert("Vui lòng chọn số sao!");
+      setMessage({ text: "Vui lòng nhập nội dung bình luận!", type: "error" });
       return;
     }
 
     try {
+      // Gửi bình luận lên server
       const res = await fetch("http://localhost:3000/api/comments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          id_user: idUser, // ✅ id thực
+          id_user: user.id,
           id_san_pham: Number(sp.ma_san_pham),
           noi_dung: noiDung,
-          rating: rating,
           trang_thai: 1,
           ngay_tao: new Date(),
         }),
       });
-      console.log("Gửi bình luận với id_user:", idUser);
 
+      if (!res.ok) {
+        const errData = await res.json();
+        setMessage({ text: "Có lỗi xảy ra khi gửi bình luận: " + errData.message, type: "error" });
+        return;
+      }
 
-      const newBinhLuan = await res.json();
-      setBinhLuanList((prev) => [newBinhLuan, ...prev]);
+      // 🔹 Fetch lại danh sách bình luận để hiển thị tên người dùng
+      const resBinhLuan = await fetch(`http://localhost:3000/api/comments?id_san_pham=${sp.ma_san_pham}`);
+      if (!resBinhLuan.ok) {
+        setMessage({ text: "Không thể tải lại bình luận sau khi gửi", type: "error" });
+        return;
+      }
+
+      const data = await resBinhLuan.json();
+      setBinhLuanList(data);
       setNoiDung("");
-      setRating(0);
+
+      // Hiển thị thông báo thành công
+      setMessage({ text: "Bình luận đã được gửi thành công!", type: "success" });
+
     } catch (err) {
       console.error("Lỗi gửi bình luận:", err);
+      setMessage({ text: "Có lỗi xảy ra khi gửi bình luận", type: "error" });
     }
-  }
+  };
+  ;
+
 
 
 
@@ -367,13 +419,15 @@ export default function ShowDetailSP({ sp }: { sp: ISanPham }) {
                   <button
                     key={index}
                     onClick={() => setSelectedVariant(bt)}
-                    className={`px-4 py-2 rounded-lg border transition ${selectedVariant?.id === bt.id
-                      ? "bg-blue-900 text-white border-blue-600"
-                      : "bg-gray-100 text-gray-800 border-gray-300 hover:bg-gray-200"
+                    className={`px-4 py-2 rounded-lg border-2 transition ${selectedVariant?.id === bt.id
+                        ? "border-blue-600 bg-white text-black"
+                        : "border-gray-300 bg-white text-black hover:border-blue-400"
                       }`}
                   >
                     {bt.mau_sac}
                   </button>
+
+
                 ))}
               </div>
             </div>
@@ -409,79 +463,73 @@ export default function ShowDetailSP({ sp }: { sp: ISanPham }) {
         <h2 className="text-xl font-bold mb-4">Bình luận sản phẩm</h2>
 
         {/* 🔹 Form nhập bình luận */}
-        {canReview ? (
-          <form onSubmit={handleSubmitBinhLuan} className="mb-6">
-            <textarea
-              value={noiDung}
-              onChange={(e) => setNoiDung(e.target.value)}
-              placeholder="Nhập bình luận của bạn..."
-              className="w-full p-3 border rounded-lg focus:outline-none focus:ring focus:ring-blue-300"
-              rows={3}
-            />
-
-            {/* ⭐ Chọn số sao */}
-            <div className="flex gap-1 mt-2">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <span
-                  key={star}
-                  className={`cursor-pointer text-xl ${star <= rating ? "text-yellow-400" : "text-gray-300"}`}
-                  onClick={() => setRating(star)}
-                >
-                  ★
-                </span>
-              ))}
-            </div>
-
-
-            <button
-              type="submit"
-              className="mt-2 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg"
+        <form onSubmit={handleSubmitBinhLuan} className="mb-6">
+          <textarea
+            value={noiDung}
+            onChange={(e) => setNoiDung(e.target.value)}
+            placeholder="Nhập bình luận của bạn..."
+            className="w-full p-3 border rounded-lg focus:outline-none focus:ring focus:ring-blue-300"
+            rows={3}
+          />
+          {/* css báo lỗi*/}
+          {message && (
+            <p
+              className={`mt-2 text-red-600 text-center text-bg ${message.type === "error" ? "text-red-600" : "text-green-600"} font-bold`}
             >
-              Gửi bình luận
-            </button>
-          </form>
-        ) : (
-          <p className="text-gray-500 mb-4">Bạn chỉ có thể bình luận sau khi nhận hàng sản phẩm này.</p>
-        )}
+              {message.text}
+            </p>
+
+          )}
+
+          <button
+            type="submit"
+            className="mt-2 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg"
+          >
+            Gửi bình luận
+          </button>
+        </form>
 
 
-        {/* 🔹 Hiển thị danh sách bình luận */}
+
+
 
         {loading ? (
           <p>Đang tải bình luận...</p>
         ) : binhLuanList.length > 0 ? (
-          <div className="space-y-3">
+          <div className="space-y-4">
             {binhLuanList.map((bl) => (
-              <div key={bl.id} className="border-b pb-1">
-                <p className="font-semibold">
-                  {bl.user?.ho_ten || `Người dùng #${bl.id_user}`}
-                </p>
+              <div
+                key={bl.id}
+                className="flex gap-4 p-4 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 border border-gray-100"
+              >
+                {/* Avatar */}
+                <div className="flex-shrink-0">
+                  <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-lg">
+                    {bl.user?.ho_ten?.[0]?.toUpperCase() || bl.id_user}
+                  </div>
+                </div>
 
-
-                {/* ⭐ Hiển thị rating */}
-                <p className="flex gap-1">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <span key={star} className={star <= bl.rating ? "text-yellow-400" : "text-gray-300"}>
-                      ★
-                    </span>
-                  ))}
-                </p>
-
-                <p className="text-gray-600">{bl.noi_dung}</p>
-                <p className="text-xs text-gray-400">{new Date(bl.ngay_tao).toLocaleString()}</p>
+                {/* Nội dung bình luận */}
+                <div className="flex-1">
+                  <div className="flex justify-between items-center mb-1">
+                    <p className="font-semibold text-gray-800">
+                      {bl.user?.ho_ten || `Người dùng #${bl.id_user}`}
+                    </p>
+                    <p className="text-xs text-gray-400">
+                      {new Date(bl.ngay_tao).toLocaleString()}
+                    </p>
+                  </div>
+                  <p className="text-gray-700">{bl.noi_dung}</p>
+                </div>
               </div>
             ))}
           </div>
         ) : (
-          <p>Chưa có bình luận nào.</p>
+          <p className="text-gray-500">Chưa có bình luận nào.</p>
         )}
+
       </div>
     </div>
 
   );
 }
-
-// if (!canReview) {
-//   alert("Bạn chỉ có thể bình luận sau khi nhận hàng sản phẩm này!");
-//   return;
-// }

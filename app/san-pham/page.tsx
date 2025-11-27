@@ -27,42 +27,57 @@ export default function SanPhamPage() {
 
   return (
     <div className="w-[90%] mx-auto my-6">
-      <h2 className="text-center font-bold text-red-600 text-2xl uppercase mb-6">
+      {/* <h2 className="text-center font-bold text-red-600 text-2xl uppercase mb-6">
         {loaiXe === "xeMay" ? "Phụ tùng xe máy" : "Phụ tùng ô tô"}
-      </h2>
+      </h2> */}
 
       {/* Bộ chọn danh mục */}
-      <div className="flex justify-center gap-4 mb-4">
-        <button
-          onClick={() => {
-            setLoaiXe("xeMay");
-            setPage(1);
-          }}
-          className={`px-5 py-2 rounded-full font-semibold border transition duration-300 ${
-            loaiXe === "xeMay"
-              ? "bg-blue-600 text-white shadow-md"
-              : "bg-white text-blue-600 border-blue-600 hover:bg-blue-50"
-          }`}
-        >
-          Phụ tùng xe máy
-        </button>
-        <button
-          onClick={() => {
-            setLoaiXe("oto");
-            setPage(1);
-          }}
-          className={`px-5 py-2 rounded-full font-semibold border transition duration-300 ${
-            loaiXe === "oto"
-              ? "bg-blue-600 text-white shadow-md"
-              : "bg-white text-blue-600 border-blue-600 hover:bg-blue-50"
-          }`}
-        >
-          Phụ tùng ô tô
-        </button>
-      </div>
+     <div className="flex items-center justify-center gap-6 mb-6">
+  {/* Tiêu đề */}
+  <p className="text-lg font-bold text-red-600">
+    Loại Phụ Tùng
+  </p>
+
+  {/* Nút chọn loại */}
+  <button
+    onClick={() => {
+      setLoaiXe("xeMay");
+      setPage(1);
+    }}
+    className={`px-5 py-2 rounded-full font-semibold border transition duration-300 ${
+      loaiXe === "xeMay"
+        ? "bg-blue-600 text-white shadow-md scale-105"
+        : "bg-white text-blue-600 border-blue-600 hover:bg-blue-50"
+    }`}
+  >
+    Phụ tùng xe máy
+  </button>
+
+  <button
+  onClick={() => {
+    setLoaiXe("oto");
+    setPage(1);
+  }}
+  className={`
+    px-5 py-2 rounded-full font-semibold border transition duration-300
+    flex items-center justify-center
+    ${
+      loaiXe === "oto"
+        ? "bg-blue-600 text-white shadow-md scale-105"
+        : "bg-white text-blue-600 border-blue-600 hover:bg-blue-50 hover:scale-105"
+    }
+  `}
+>
+  Phụ tùng ô tô
+</button>
+
+</div>
+
 
       {/* Nút sắp xếp giá */}
       <div className="flex justify-center gap-4 mb-6">
+        <p className="text-lg font-bold text-red-600 mb-1">
+          Sắp xếp theo giá</p>
         <button
           onClick={() => setSortOrder("ASC")}
           className={`px-5 py-2 rounded-full font-semibold border transition duration-300 ${

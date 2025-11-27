@@ -12,7 +12,7 @@ export default function CheckoutPage() {
     ghi_chu: "",
   });
 
-   useEffect(() => {
+  useEffect(() => {
     // Lấy user hiện tại từ localStorage
     const user = JSON.parse(localStorage.getItem("user") || "null");
     if (!user) return;
@@ -35,37 +35,37 @@ export default function CheckoutPage() {
   // 🔹 Lấy id_user sau khi client render
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem("user") || "null");
-const idUser = user ? user.id : null;
+    const idUser = user ? user.id : null;
     setIdUser(idUser);
   }, []);
 
   useEffect(() => {
-  const savedCart = localStorage.getItem("cart");
-  if (savedCart) {
-    setCart(JSON.parse(savedCart));
-  } else {
-    setCart([]);
-  }
-}, []);
-
- useEffect(() => {
-  async function fetchCart() {
-    // Lấy user từ localStorage
-    const user = JSON.parse(localStorage.getItem("user") || "null");
-    const id_user = user ? user.id : 10; // 👉 Nếu chưa đăng nhập thì mặc định là 10
-    console.log("🟢 ID user hiện tại:", id_user);
-    try {
-      const res = await fetch(`http://localhost:3000/api/cart?id_user=${id_user}`);
-      const data = await res.json();
-      console.log("🟢 Dữ liệu giỏ hàng nhận được:", data);
-      setCart(data);
-    } catch (err) {
-      console.error("Lỗi lấy giỏ hàng:", err);
+    const savedCart = localStorage.getItem("cart");
+    if (savedCart) {
+      setCart(JSON.parse(savedCart));
+    } else {
+      setCart([]);
     }
-  }
+  }, []);
 
-  fetchCart();
-}, []);
+  useEffect(() => {
+    async function fetchCart() {
+      // Lấy user từ localStorage
+      const user = JSON.parse(localStorage.getItem("user") || "null");
+      const id_user = user ? user.id : 10; // 👉 Nếu chưa đăng nhập thì mặc định là 10
+      console.log("🟢 ID user hiện tại:", id_user);
+      try {
+        const res = await fetch(`http://localhost:3000/api/cart?id_user=${id_user}`);
+        const data = await res.json();
+        console.log("🟢 Dữ liệu giỏ hàng nhận được:", data);
+        setCart(data);
+      } catch (err) {
+        console.error("Lỗi lấy giỏ hàng:", err);
+      }
+    }
+
+    fetchCart();
+  }, []);
   // 🔹 Submit đơn hàng
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -73,18 +73,18 @@ const idUser = user ? user.id : null;
       alert("Giỏ hàng của bạn đang trống!");
       return;
     }
-   const user = JSON.parse(localStorage.getItem("user") || "null");
-const idUser = user?.id || null;
+    const user = JSON.parse(localStorage.getItem("user") || "null");
+    const idUser = user?.id || null;
     const orderData = {
       ...formData,
-  id_user: idUser,
-  items: cart.map((item) => ({
-    id_san_pham: item.id_san_pham,
-    so_luong: item.so_luong,
-    gia: item.gia,
-  })),
-  phuong_thuc: phuongThucThanhToan,
-};
+      id_user: idUser,
+      items: cart.map((item) => ({
+        id_san_pham: item.id_san_pham,
+        so_luong: item.so_luong,
+        gia: item.gia,
+      })),
+      phuong_thuc: phuongThucThanhToan,
+    };
 
     try {
       const res = await fetch("http://localhost:3000/api/orders/create", {
@@ -95,17 +95,17 @@ const idUser = user?.id || null;
       const data = await res.json();
       if (data.success) {
         // Xóa giỏ hàng
-            setCart([]);
+        setCart([]);
         localStorage.removeItem("cart");
         if (idUser) {
           console.log("Order gửi lên:", orderData);
-      try {
-         await fetch(`http://localhost:3000/api/cart/${idUser}`, { method: "DELETE" });
-        console.log("🗑️ Giỏ hàng đã được xóa trong DB");
-      } catch (err) {
-        console.error("❌ Lỗi khi xóa giỏ hàng trong DB:", err);
-      }
-    }
+          try {
+            await fetch(`http://localhost:3000/api/cart/${idUser}`, { method: "DELETE" });
+            console.log("🗑️ Giỏ hàng đã được xóa trong DB");
+          } catch (err) {
+            console.error("❌ Lỗi khi xóa giỏ hàng trong DB:", err);
+          }
+        }
 
         if (phuongThucThanhToan === "online") {
           const paymentRes = await fetch("http://localhost:3000/api/vnpay/create_payment", {
@@ -136,7 +136,7 @@ const idUser = user?.id || null;
     }
   }
 
-  
+
 
   return (
     <div className="container mx-auto p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -149,41 +149,41 @@ const idUser = user?.id || null;
           {/* Các input cũ */}
           {/* <input type="text" placeholder="Họ tên" required className="border rounded px-3 py-2"
             value={formData.ho_ten} onChange={(e) => setFormData({ ...formData, ho_ten: e.target.value })} /> */}
-           <div className="flex flex-col gap-3">
-      <input
-        type="text"
-        placeholder="Tên người nhận"
-        required
-        className="border rounded px-3 py-2"
-        value={formData.ten_nguoi_nhan}
-        onChange={(e) => setFormData({ ...formData, ten_nguoi_nhan: e.target.value })}
-      />
+          <div className="flex flex-col gap-3">
+            <input
+              type="text"
+              placeholder="Tên người nhận"
+              required
+              className="border rounded px-3 py-2"
+              value={formData.ten_nguoi_nhan}
+              onChange={(e) => setFormData({ ...formData, ten_nguoi_nhan: e.target.value })}
+            />
 
-      <input
-        type="text"
-        placeholder="Địa chỉ"
-        required
-        className="border rounded px-3 py-2"
-        value={formData.dia_chi}
-        onChange={(e) => setFormData({ ...formData, dia_chi: e.target.value })}
-      />
+            <input
+              type="text"
+              placeholder="Địa chỉ"
+              required
+              className="border rounded px-3 py-2"
+              value={formData.dia_chi}
+              onChange={(e) => setFormData({ ...formData, dia_chi: e.target.value })}
+            />
 
-      <input
-        type="text"
-        placeholder="Số điện thoại"
-        required
-        className="border rounded px-3 py-2"
-        value={formData.dien_thoai}
-        onChange={(e) => setFormData({ ...formData, dien_thoai: e.target.value })}
-      />
+            <input
+              type="text"
+              placeholder="Số điện thoại"
+              required
+              className="border rounded px-3 py-2"
+              value={formData.dien_thoai}
+              onChange={(e) => setFormData({ ...formData, dien_thoai: e.target.value })}
+            />
 
-      <textarea
-        placeholder="Ghi chú"
-        className="border rounded px-3 py-2"
-        value={formData.ghi_chu}
-        onChange={(e) => setFormData({ ...formData, ghi_chu: e.target.value })}
-      />
-    </div>
+            <textarea
+              placeholder="Ghi chú"
+              className="border rounded px-3 py-2"
+              value={formData.ghi_chu}
+              onChange={(e) => setFormData({ ...formData, ghi_chu: e.target.value })}
+            />
+          </div>
 
 
 

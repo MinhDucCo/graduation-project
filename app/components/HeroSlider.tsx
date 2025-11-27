@@ -2,8 +2,8 @@
 import { useState, useEffect } from "react";
 const images = [
   "/images/banner-phukien.png", // đổi thành ảnh của bạn trong public/images
-  "/images/banner2.webp",
-  "/images/slide_mam_do_2.jpg",
+  "/images/b5.jpg",
+  "/images/b3.webp",
 ];
 
 export default function HeroSlider() {
@@ -35,7 +35,7 @@ export default function HeroSlider() {
       </div>
 
       {/* Dots indicator */}
-      <div className="absolute bottom-5 left-1/2 transform -translate-x-1/2 flex gap-3">
+      {/* <div className="absolute bottom-5 left-1/2 transform -translate-x-1/2 flex gap-3">
         {images.map((_, index) => (
           <button
             key={index}
@@ -45,7 +45,7 @@ export default function HeroSlider() {
             }`}
           />
         ))}
-      </div>
+      </div> */}
 
       {/* Prev & Next button */}
       <button
