@@ -9,6 +9,7 @@ export default function DonHangCuaToi() {
   // State modal
   const [showModal, setShowModal] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
+  
 
   const handleOpenModal = (id: number) => {
     setSelectedOrderId(id);
@@ -38,32 +39,56 @@ export default function DonHangCuaToi() {
   }, []);
 
   // Thay đổi handleCancelOrder để nhận id từ selectedOrderId
-  const handleCancelOrder = async () => {
-    if (selectedOrderId === null) return;
+ const handleCancelOrder = async () => {
+  const current = orders.find(o => o.id === selectedOrderId);
 
-    try {
-      const res = await fetch(`http://localhost:3000/api/orders/cancel/${selectedOrderId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ly_do_huy: "Đã hủy" }),
-      });
+  if (!current) {
+    alert("Không tìm thấy đơn hàng!");
+    return;
+  }
 
-      const data = await res.json();
+  // Chuẩn hóa trạng thái
+  const st = String(current.status || "").toLowerCase();
+  const normalized = st
+    .replace(/\s+/g, "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
 
-      if (res.ok) {
-        setOrders(prev =>
-          prev.map(o => o.id === selectedOrderId ? { ...o, status: "canceled", ly_do_huy: "Đã hủy" } : o)
-        );
-      } else {
-        alert("Lỗi: " + data.message);
-      }
-    } catch (err) {
-      console.error("Lỗi hủy đơn:", err);
-    } finally {
-      setShowModal(false);
-      setSelectedOrderId(null);
+  console.log("Normalized status:", normalized);
+
+  // CHỈ CHO HỦY: pending & Chờ xác nhận
+  if (!["pending", "choraxacnhan"].includes(normalized)) {
+    alert("Chỉ đơn hàng chờ xác nhận mới có thể hủy!");
+    return;
+  }
+
+  // Xử lý hủy đơn như bình thường
+  try {
+    const res = await fetch(`http://localhost:3000/api/orders/cancel/${selectedOrderId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ly_do_huy: "Đã hủy" }),
+    });
+
+    const data = await res.json();
+
+    if (res.ok) {
+      setOrders(prev =>
+        prev.map(o =>
+          o.id === selectedOrderId ? { ...o, status: "canceled", ly_do_huy: "Đã hủy" } : o
+        )
+      );
+    } else {
+      alert("Lỗi: " + data.message);
     }
-  };
+  } catch (err) {
+    console.error("Lỗi hủy đơn:", err);
+  } finally {
+    setShowModal(false);
+    setSelectedOrderId(null);
+  }
+};
+
 
   if (loading) return <p className="text-center mt-10">Đang tải đơn hàng...</p>;
 
@@ -138,18 +163,34 @@ export default function DonHangCuaToi() {
                 .toLocaleString()}
               ₫
             </div>
-
             {/* Nút hủy đơn */}
-            {order.status.toLowerCase() !== "canceled" && (
-              <div className="text-right mt-4">
-                <button
-                  className="px-5 py-2 bg-blue-500 text-white font-semibold rounded-lg shadow hover:bg-blue-800 transition duration-300"
-                  onClick={() => handleOpenModal(order.id)}
-                >
-                  Hủy đơn
-                </button>
-              </div>
-            )}
+{(() => {
+  const st = String(order?.status || "").toLowerCase();
+  const normalized = st.replace(/\s+/g, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+  const canCancel =
+    normalized === "pending" ||
+    normalized === "choxacnhan";
+
+  return (
+    <div className="text-right mt-4">
+      <button
+        disabled={!canCancel}
+        onClick={canCancel ? () => handleOpenModal(order.id) : undefined}
+        className={`px-5 py-2 font-semibold rounded-lg shadow transition duration-300
+          ${canCancel 
+            ? "bg-blue-500 text-white hover:bg-blue-800 cursor-pointer" 
+            : "bg-gray-300 text-gray-500 cursor-not-allowed opacity-60"
+          }`}
+      >
+        Hủy đơn
+      </button>
+    </div>
+  );
+})()}
+
+
+
 
           </div>
         ))}

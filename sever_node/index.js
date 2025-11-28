@@ -1036,54 +1036,74 @@ app.get("/api/orders", async (req, res) => {
           as: "chi_tiet",
           include: [
             {
-              model: PhuTungXeModel,               // lấy tên sản phẩm
+              model: PhuTungXeModel,
               attributes: ["ten_san_pham", "mo_ta"],
             },
             {
-              model: BienTheSanPhamModel,          // lấy hình ảnh, giá, màu
+              model: BienTheSanPhamModel,
               attributes: ["hinh", "mau_sac", "gia"],
             },
           ],
         },
       ],
-      order: [["id", "DESC"]], // sắp xếp từ đơn mới nhất xuống
+      order: [["id", "DESC"]],
     });
 
     if (!orders || orders.length === 0) {
       return res.status(404).json({ message: "Không có đơn hàng nào!" });
     }
 
-    res.json(orders);
+    // 🚀 FIX QUAN TRỌNG: TRẢ STATUS DẠNG CODE
+    const mapped = orders.map(o => ({
+      ...o.dataValues,
+      status: String(o.status).toLowerCase(),  // <= đảm bảo FE nhận "pending"
+    }));
+
+    res.json(mapped);
+
   } catch (err) {
     console.error("Lỗi lấy danh sách đơn hàng:", err);
     res.status(500).json({ error: err.message });
   }
 });
-app.put("/api/orders/cancel/:id", async (req, res) => {
-  const { id } = req.params;
 
+app.put("/api/orders/cancel/:id", async (req, res) => {
   try {
+    const { id } = req.params;
     const order = await DonHangModel.findByPk(id);
+
     if (!order) {
       return res.status(404).json({ message: "Không tìm thấy đơn hàng!" });
     }
 
-    if (order.status === "canceled") {
-      return res.status(400).json({ message: "Đơn hàng này đã được hủy trước đó!" });
+    // CHUẨN HÓA TRẠNG THÁI
+    const st = String(order.status).toLowerCase();
+    const normalized = st
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "") // bỏ dấu
+      .replace(/\s+/g, ""); // bỏ khoảng trắng
+
+    // Chỉ cho hủy nếu status là pending hoặc Chờ xác nhận
+    if (!["pending", "choraxacnhan"].includes(normalized)) {
+      return res.status(400).json({
+        message: "Chỉ đơn hàng chờ xác nhận mới có thể hủyyy!"
+      });
     }
 
-    order.status = "canceled";
-    order.ly_do_huy = "Đã hủy";
-    await order.save();
+    // Cập nhật trạng thái
+    await order.update({
+      status: "cancelled"
+    });
 
-    console.log(`Đơn hàng #${id} đã được hủy.`);
+    res.json(order);
 
-    res.status(200).json({ message: "Hủy đơn thành công", order });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: err.message });
+    console.error("Lỗi cập nhật trạng thái đơn hàng:", err);
+    res.status(500).json({ message: "Lỗi server!" });
   }
 });
+
+
 // === API LẤY DANH SÁCH BÌNH LUẬN ===
 app.get("/api/comments", async (req, res) => {
   const { id_san_pham } = req.query;
@@ -1694,9 +1714,6 @@ app.put("/api/admin/settings", checkAdmin, async (req, res) => {
     res.status(500).json({ message: 'Lỗi server!' });
   }
 });
-
-
-
 
 
 

@@ -210,10 +210,24 @@
 }
 /* ==== GRID CHỨA 3 Ô ==== */
 .statsGrid {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr); /* 4 ô ngang */
   gap: 16px;
   margin-bottom: 20px;
 }
+@media (max-width: 1200px) {
+  .statsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .statsGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+
 
 /* ==== THẺ STAT ==== */
 .statCard {
@@ -385,4 +399,20 @@
 
 .btnClose:hover {
   background: #475569;
+}
+
+/* Tiêu đề "Theo trạng thái" */
+.statusTitle {
+  font-weight: 600;
+  font-size: 15px;
+  margin-bottom: 10px;
+  color: #111827;
+}
+
+/* Từng dòng trạng thái */
+.statusItem {
+  font-size: 14px;
+  color: #374151;
+  margin-bottom: 4px;
+  line-height: 20px;
 }

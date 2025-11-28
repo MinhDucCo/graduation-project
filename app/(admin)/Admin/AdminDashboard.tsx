@@ -57,27 +57,38 @@ export interface Order {
 
 
 function mapDbStatusToOrderStatus(dbStatus: string): OrderStatus {
-  if (dbStatus === "canceled") return "cancelled";
-  if (dbStatus.toLowerCase().includes("chờ")) return "pending";
-  if (dbStatus === "Đã thanh toán") return "paid";
-  if (dbStatus === "Đang giao") return "shipping";
-  if (dbStatus === "Hoàn tất") return "done";
+  const st = String(dbStatus).toLowerCase().trim();
+
+  if (st === "cancelled" || st === "canceled") return "cancelled";
+
+  if (st.includes("chờ") || st.includes("cho")) return "pending";
+
+  if (st === "đã thanh toán" || st === "paid") return "paid";
+
+  if (st === "đang giao" || st === "shipping") return "shipping";
+
+  if (st === "hoàn tất" || st === "done") return "done";
+
   return "pending";
 }
-function mapOrderStatusToDbStatus(s: OrderStatus): string {
-  switch (s) {
+
+export function mapOrderStatusToDbStatus(status: OrderStatus) {
+  switch (status) {
     case "pending":
-      return "Chờ xác nhận";
+      return "pending";
     case "paid":
-      return "Đã thanh toán";
+      return "paid";
     case "shipping":
-      return "Đang giao";
+      return "shipping";
     case "done":
-      return "Hoàn tất";
+      return "done";
     case "cancelled":
-      return "canceled";
+      return "cancelled";
+    default:
+      return "pending";
   }
 }
+
 
 const STORAGE_KEY = 'admin_products_v1';
 
@@ -109,7 +120,7 @@ export default function AdminDashboard() {
   const [settingsLoading, setSettingsLoading] = useState(false);
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
-  const [rangePreset, setRangePreset] = useState<'7d' | '30d' | 'this-month' | 'custom'>('7d');
+  const [rangePreset, setRangePreset] = useState<'7d' | '15d' | 'this-month' | 'custom'>('7d');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   // News state
@@ -470,7 +481,7 @@ export default function AdminDashboard() {
             ten_nguoi_nhan: row.ten_nguoi_nhan || row.customerName || '',
             dia_chi: row.dia_chi ?? row.address ?? null,
             dien_thoai: row.dien_thoai ?? row.phone ?? null,
-            status: mapDbStatusToOrderStatus(row.status || row.trang_thai || 'Chờ xử lý'),
+            status: mapDbStatusToOrderStatus(row.status),
             ngay_dat: isoDate,
             createdAt: isoDate,
             total: Number(row.tong_tien ?? row.total ?? 0),   // 👈 quan trọng
@@ -1094,14 +1105,14 @@ export default function AdminDashboard() {
                 setStartDate(start.toISOString().slice(0, 10));
                 setEndDate(end.toISOString().slice(0, 10));
               }}>7 ngày</button>
-              <button className={`${styles.pillBtn} ${rangePreset === '30d' ? styles.pillActive : ''}`} onClick={() => {
-                setRangePreset('30d');
+              <button className={`${styles.pillBtn} ${rangePreset === '15d' ? styles.pillActive : ''}`} onClick={() => {
+                setRangePreset('15d');
                 const end = new Date();
                 const start = new Date();
                 start.setDate(end.getDate() - 29);
                 setStartDate(start.toISOString().slice(0, 10));
                 setEndDate(end.toISOString().slice(0, 10));
-              }}>30 ngày</button>
+              }}>15 ngày</button>
               <button className={`${styles.pillBtn} ${rangePreset === 'this-month' ? styles.pillActive : ''}`} onClick={() => {
                 setRangePreset('this-month');
                 const now = new Date();
@@ -1110,10 +1121,8 @@ export default function AdminDashboard() {
                 setStartDate(start.toISOString().slice(0, 10));
                 setEndDate(end.toISOString().slice(0, 10));
               }}>Tháng này</button>
-              <span className={styles.subdued}>hoặc chọn khoảng:</span>
+              <span className={styles.subdued}>Chọn Ngày Tháng</span>
               <input aria-label="start date" type="date" className={styles.dateInput} value={startDate} onChange={(e) => { setStartDate(e.target.value); setRangePreset('custom'); }} />
-              <span>—</span>
-              <input aria-label="end date" type="date" className={styles.dateInput} value={endDate} onChange={(e) => { setEndDate(e.target.value); setRangePreset('custom'); }} />
             </div>
             <DashboardStats
               stats={undefined}
