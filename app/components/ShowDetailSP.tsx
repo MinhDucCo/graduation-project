@@ -5,8 +5,26 @@ import { useRouter } from "next/navigation";
 
 export default function ShowDetailSP({ sp }: { sp: ISanPham }) {
   const router = useRouter();
+  // Nếu API không trả `bien_the_san_phams`, tạo biến thể giả từ các trường top-level
+  const computedVariants: IBienThe[] = (sp.bien_the_san_phams && Array.isArray(sp.bien_the_san_phams) && sp.bien_the_san_phams.length>0)
+    ? sp.bien_the_san_phams
+    : [
+        {
+          id: sp.id ? Number(String(sp.id).replace(/[^0-9]/g, '')) || 0 : 0,
+          ma_san_pham: sp.ma_san_pham || sp.id || '' as any,
+          mau_sac: sp.mau_sac || '',
+          gia: (sp.gia ?? sp.price ?? 0) as any,
+          so_luong: (sp.so_luong ?? sp.stock ?? 0) as any,
+          hinh: sp.hinh || sp.imageUrl || '',
+          hinh_phu1: sp.hinh_phu1 || '',
+          hinh_phu2: sp.hinh_phu2 || '',
+          hinh_phu3: sp.hinh_phu3 || '',
+          ghi_chu: sp.ghi_chu || '',
+        },
+      ];
+
   const [selectedVariant, setSelectedVariant] = useState<IBienThe | undefined>(
-    sp.bien_the_san_phams?.[0]
+    computedVariants[0]
   );
   // State bình luận
   const [binhLuanList, setBinhLuanList] = useState<any[]>([]);

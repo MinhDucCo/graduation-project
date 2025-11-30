@@ -189,21 +189,35 @@ app.get("/api/sanpham_hot", async (req, res) => {
 app.get("/api/sanpham/:ma_san_pham", async (req, res) => {
   try {
     const { ma_san_pham } = req.params;
+    console.log(`📖 GET /api/sanpham/${ma_san_pham}`);
 
-    // Lấy thông tin sản phẩm
-    const sp = await PhuTungXeModel.findOne({ where: { ma_san_pham } });
-    if (!sp) return res.status(404).json({ message: "Không tìm thấy sản phẩm" });
-
-    // Lấy danh sách biến thể của sản phẩm
-    const bienThe = await BienTheSanPhamModel.findAll({
-      where: { ma_san_pham: sp.ma_san_pham },
+    // Lấy thông tin sản phẩm kèm associations
+    const sp = await PhuTungXeModel.findOne({
+      where: { ma_san_pham },
+      include: [
+        {
+          model: BienTheSanPhamModel,
+          attributes: ["id", "mau_sac", "gia", "so_luong", "hinh", "hinh_phu1", "hinh_phu2", "hinh_phu3", "ghi_chu"],
+          required: false,
+        },
+        {
+          model: LoaiXeModel,
+          attributes: ["ten_loai"],
+          required: false,
+        },
+      ],
     });
 
-    // Trả về dữ liệu sản phẩm kèm biến thể
-    res.json({
-      ...sp.toJSON(),
-      bien_the_san_phams: bienThe,
-    });
+    if (!sp) {
+      console.log(`❌ Sản phẩm ${ma_san_pham} không tìm thấy`);
+      return res.status(404).json({ message: "Không tìm thấy sản phẩm" });
+    }
+
+    const responseData = sp.toJSON ? sp.toJSON() : sp;
+    console.log(`✅ Sản phẩm ${ma_san_pham} trả về:`, JSON.stringify(responseData, null, 2));
+
+    // Trả về dữ liệu sản phẩm
+    res.json(responseData);
   } catch (error) {
     console.error("Lỗi API /api/sanpham/:ma_san_pham:", error);
     res.status(500).json({ message: "Lỗi server" });
@@ -1311,8 +1325,11 @@ app.get("/api/admin/products", async (req, res) => {
 // POST /api/admin/products - Tạo sản phẩm mới
 app.post("/api/admin/products", checkAdmin, async (req, res) => {
   try {
-    console.log('📦 POST /api/admin/products - Request body:', JSON.stringify(req.body, null, 2));
+    console.log('========== POST /api/admin/products START ==========');
+    console.log('📦 Request body keys:', Object.keys(req.body));
+    console.log('📦 Full Request body:', JSON.stringify(req.body, null, 2));
     const { ten_san_pham, mo_ta, bien_the, id_loai_xe, an_hien } = req.body;
+    console.log('🔍 After destructuring - bien_the:', bien_the ? 'EXISTS' : 'UNDEFINED/NULL', 'Type:', typeof bien_the, 'IsArray:', Array.isArray(bien_the));
     
     if (!ten_san_pham) {
       console.log('❌ Thiếu tên sản phẩm');
@@ -1402,6 +1419,8 @@ app.post("/api/admin/products", checkAdmin, async (req, res) => {
     }
     
     // Tạo biến thể nếu có
+    console.log('🔍 Kiểm tra bien_the - Type:', typeof bien_the, 'IsArray:', Array.isArray(bien_the), 'Length:', bien_the?.length, 'Value:', JSON.stringify(bien_the));
+    
     if (bien_the && Array.isArray(bien_the) && bien_the.length > 0) {
       console.log('✅ Tạo biến thể, số lượng:', bien_the.length);
 
@@ -1448,22 +1467,74 @@ app.post("/api/admin/products", checkAdmin, async (req, res) => {
         console.error('❌ Lỗi khi tạo biến thể:', bienTheError);
         console.warn('⚠️ Sản phẩm đã được tạo nhưng biến thể thất bại');
       }
+    } else {
+      console.log('⚠️ Không có bien_the hoặc bien_the rỗng, bỏ qua tạo biến thể. Dữ liệu nhận được:', { bien_the });
+    }
+    
+    // Kiểm tra xem variant có trong database không (raw query để chắc chắn)
+    try {
+      const ma_sp = product.ma_san_pham;
+      console.log('🔎 Kiểm tra trong database xem variants của product', ma_sp, 'có không...');
+      const countResult = await sequelize.query(
+        'SELECT COUNT(*) as count FROM bien_the_san_pham WHERE ma_san_pham = ?',
+        { replacements: [ma_sp], type: sequelize.QueryTypes.SELECT }
+      );
+      const variantCount = countResult[0]?.count || 0;
+      console.log('📊 Tìm thấy', variantCount, 'variant(s) trong database cho product', ma_sp);
+      
+      if (variantCount > 0) {
+        const variants = await sequelize.query(
+          'SELECT id, ma_san_pham, mau_sac, gia, so_luong FROM bien_the_san_pham WHERE ma_san_pham = ?',
+          { replacements: [ma_sp], type: sequelize.QueryTypes.SELECT }
+        );
+        console.log('✅ Chi tiết variants:', JSON.stringify(variants, null, 2));
+      }
+    } catch (checkErr) {
+      console.warn('⚠️ Không thể kiểm tra variants trong database:', checkErr?.message);
     }
     
     // Lấy lại sản phẩm với biến thể
-    const productWithVariants = await PhuTungXeModel.findByPk(product.ma_san_pham, {
-      include: [
-        { model: LoaiXeModel, attributes: ["ten_loai"], required: false },
-        { model: BienTheSanPhamModel, required: false },
-      ],
-    });
-    
-    if (!productWithVariants) {
-      console.error('❌ Không tìm thấy sản phẩm sau khi tạo:', product.ma_san_pham);
-      return res.status(500).json({ 
-        message: 'Lỗi server! Không thể lấy lại sản phẩm sau khi tạo.',
-        error: 'Product not found after creation'
-      });
+    let productWithVariants = null;
+    try {
+      const pk = product.ma_san_pham || product.id || null;
+      console.log('🔎 Tìm kiếm sản phẩm sau khi tạo, PK:', pk);
+      if (pk) {
+        productWithVariants = await PhuTungXeModel.findByPk(pk, {
+          include: [
+            { model: LoaiXeModel, attributes: ["ten_loai"], required: false },
+            { model: BienTheSanPhamModel, required: false },
+          ],
+        });
+        console.log('🔍 Kết quả findByPk:', productWithVariants ? '✅ Tìm thấy' : '❌ Không tìm thấy', productWithVariants ? JSON.stringify(productWithVariants.toJSON ? productWithVariants.toJSON() : productWithVariants, null, 2) : '');
+      }
+
+      // Nếu không tìm thấy theo PK (một số bảng có khóa đặc biệt), thử tìm theo tên + loại gần nhất
+      if (!productWithVariants) {
+        console.warn('⚠️ findByPk failed, trying fallback findOne by ten_san_pham and id_loai_xe');
+        productWithVariants = await PhuTungXeModel.findOne({
+          where: {
+            ten_san_pham: ten_san_pham,
+            id_loai_xe: Number(id_loai_xe),
+          },
+          include: [
+            { model: LoaiXeModel, attributes: ["ten_loai"], required: false },
+            { model: BienTheSanPhamModel, required: false },
+          ],
+          order: [["ma_san_pham", "DESC"]],
+        });
+      }
+
+      if (!productWithVariants) {
+        console.error('❌ Không tìm thấy sản phẩm sau khi tạo (cả PK và fallback):', product.ma_san_pham, ten_san_pham);
+        return res.status(500).json({ 
+          message: 'Lỗi server! Không thể lấy lại sản phẩm sau khi tạo.',
+          error: 'Product not found after creation',
+          debug: { createdProduct: product.toJSON ? product.toJSON() : product }
+        });
+      }
+    } catch (findErr) {
+      console.error('❌ Lỗi khi tìm lại sản phẩm sau khi tạo:', findErr);
+      return res.status(500).json({ message: 'Lỗi server! Không thể lấy lại sản phẩm sau khi tạo.', error: findErr.message });
     }
     
     const productJSON = productWithVariants.toJSON ? productWithVariants.toJSON() : productWithVariants;

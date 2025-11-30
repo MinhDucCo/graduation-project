@@ -128,21 +128,35 @@ app.get("/api/sanpham_hot", async (req, res) => {
 app.get("/api/sanpham/:ma_san_pham", async (req, res) => {
   try {
     const { ma_san_pham } = req.params;
+    console.log(`📖 GET /api/sanpham/${ma_san_pham}`);
 
-    // Lấy thông tin sản phẩm
-    const sp = await PhuTungXeModel.findOne({ where: { ma_san_pham } });
-    if (!sp) return res.status(404).json({ message: "Không tìm thấy sản phẩm" });
-
-    // Lấy danh sách biến thể của sản phẩm
-    const bienThe = await BienTheSanPhamModel.findAll({
-      where: { ma_san_pham: sp.ma_san_pham },
+    // Lấy thông tin sản phẩm kèm associations
+    const sp = await PhuTungXeModel.findOne({
+      where: { ma_san_pham },
+      include: [
+        {
+          model: BienTheSanPhamModel,
+          attributes: ["id", "mau_sac", "gia", "so_luong", "hinh", "hinh_phu1", "hinh_phu2", "hinh_phu3", "ghi_chu"],
+          required: false,
+        },
+        {
+          model: LoaiXeModel,
+          attributes: ["ten_loai"],
+          required: false,
+        },
+      ],
     });
 
-    // Trả về dữ liệu sản phẩm kèm biến thể
-    res.json({
-      ...sp.toJSON(),
-      bien_the_san_phams: bienThe,
-    });
+    if (!sp) {
+      console.log(`❌ Sản phẩm ${ma_san_pham} không tìm thấy`);
+      return res.status(404).json({ message: "Không tìm thấy sản phẩm" });
+    }
+
+    const responseData = sp.toJSON ? sp.toJSON() : sp;
+    console.log(`✅ Sản phẩm ${ma_san_pham} trả về:`, JSON.stringify(responseData, null, 2));
+
+    // Trả về dữ liệu sản phẩm
+    res.json(responseData);
   } catch (error) {
     console.error("Lỗi API /api/sanpham/:ma_san_pham:", error);
     res.status(500).json({ message: "Lỗi server" });

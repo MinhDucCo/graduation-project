@@ -5,6 +5,28 @@ import { ISanPham } from "@/app/components/cautrucdata";
 import ShowSP from "@/app/components/ShowSP";
 
 // 🔥 Sản phẩm bán chạy
+// Helper: chuẩn hoá mảng sản phẩm
+const normalizeProducts = (arr: any[]) => {
+  if (!Array.isArray(arr)) return [];
+  return arr.map((x: any) => {
+    const copy: any = { ...x };
+
+    if (Array.isArray(copy.bien_the_san_phams) && copy.bien_the_san_phams.length > 0) {
+      return copy;
+    }
+
+    const variant: any = {
+      gia: copy.gia ?? copy.price ?? 0,
+      so_luong: copy.so_luong ?? copy.stock ?? 0,
+      hinh: copy.hinh ?? copy.imageUrl ?? "",
+      mau_sac: copy.mau_sac ?? "",
+    };
+
+    copy.bien_the_san_phams = [variant];
+    return copy;
+  });
+};
+
 function SanPhamBanChay() {
   const [sp_hot, setSpHot] = useState<ISanPham[]>([]);
 
@@ -14,7 +36,43 @@ function SanPhamBanChay() {
         const resHot = await fetch("http://localhost:3000/api/sanpham_hot");
         const data = await resHot.json();
         console.log("🔥 API phu_tung_xe:", data); // 👉 in ra để xem API trả về gì
-        setSpHot(data); // nếu API trả về object { data: [...] } thì đổi thành setSpHot(data.data)
+
+        // Hỗ trợ nhiều dạng response:
+        // - array trực tiếp
+        // - { sp_hot: [...] }
+        // - { data: [...] }
+        let arr = [];
+        if (Array.isArray(data)) arr = data;
+        else if (Array.isArray(data?.sp_hot)) arr = data.sp_hot;
+        else if (Array.isArray(data?.data)) arr = data.data;
+
+        if (!Array.isArray(arr)) {
+          console.warn("API /sanpham_hot không trả về mảng, dùng fallback rỗng.", data);
+          arr = [];
+        }
+
+        // Chuẩn hoá mỗi phần tử để component ShowSP luôn có thể đọc `bien_the_san_phams`
+        const normalized = arr.map((x: any) => {
+          const copy: any = { ...x };
+
+          // Nếu backend trả bien_the_san_phams thì giữ nguyên
+          if (Array.isArray(copy.bien_the_san_phams) && copy.bien_the_san_phams.length > 0) {
+            return copy;
+          }
+
+          // Nếu backend trả top-level fields như `gia`, `hinh`, `so_luong`, tạo biến thể giả
+          const variant: any = {
+            gia: copy.gia ?? copy.price ?? 0,
+            so_luong: copy.so_luong ?? copy.stock ?? 0,
+            hinh: copy.hinh ?? copy.imageUrl ?? "",
+            mau_sac: copy.mau_sac ?? "",
+          };
+
+          copy.bien_the_san_phams = [variant];
+          return copy;
+        });
+
+        setSpHot(normalized);
       } catch (err) {
         console.error("Lỗi fetch sản phẩm bán chạy:", err);
       }
@@ -53,8 +111,9 @@ function SanPhamXeMay() {
         );
         const data = await res.json();
         console.log("🔥 API an_hien_2:", data); // kiểm tra trả về
-        setSpAnHien2(data.data); // ✅ chỉ lấy mảng sản phẩm
-        setTotalPages(data.pagination.totalPages); // ✅ lấy tổng số trang
+        const items = normalizeProducts(data?.data || []);
+        setSpAnHien2(items); // ✅ chỉ lấy mảng sản phẩm
+        setTotalPages(data?.pagination?.totalPages || 1); // ✅ lấy tổng số trang
       } catch (err) {
         console.error("Lỗi fetch sản phẩm Xe Máy:", err);
       }
@@ -133,8 +192,9 @@ function PhuTungOto() {
           `http://localhost:3000/api/san_pham/an_hien_3?page=${page}&limit=${limit}`
         );
         const data = await res.json();
-        setSpAnHien3(data.data);
-        setTotalPages(data.totalPages);
+        const items = normalizeProducts(data?.data || []);
+        setSpAnHien3(items);
+        setTotalPages(data?.pagination?.totalPages || 1);
       } catch (err) {
         console.error("Lỗi fetch sản phẩm Ô tô:", err);
       }
