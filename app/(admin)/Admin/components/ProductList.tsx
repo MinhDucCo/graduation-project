@@ -14,6 +14,7 @@ interface Props {
   onClearSelection?: () => void;
 }
 
+
 export default function ProductList({ products, onEdit, onDelete, selectedIds, onToggleSelect, onSelectAll, onClearSelection }: Props) {
   return (
     <div className={styles.tableWrapper}>

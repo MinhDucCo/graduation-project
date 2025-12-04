@@ -1,21 +1,28 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import type { Product } from "../AdminDashboard";
-import styles from "../admin.module.css";
+export interface ProductFormData {
+  id?: string;
+  name: string;
+  ten_san_pham?: string;
+  price: number;
+  stock: number;
+  category?: string;
+  imageUrl?: string;
+  description?: string;
+  an_hien?: number;
+  mau_sac?: string;
+  hinh_phu1?: string;
+  hinh_phu2?: string;
+  hinh_phu3?: string;
+  ghi_chu?: string;
+  id_loai_xe?: number;
+    bien_the?: BienThe[];
+}
 
 interface Props {
-  initial?: Product;
-  onSave: (
-    p: Product & {
-      id_loai_xe?: number;
-      mau_sac?: string;
-      hinh_phu1?: string;
-      hinh_phu2?: string;
-      hinh_phu3?: string;
-      ghi_chu?: string;
-    }
-  ) => void;
+  initial?: ProductFormData;
+  onSave: (data: ProductFormData) => void;
   onCancel: () => void;
 }
 
@@ -23,300 +30,356 @@ interface LoaiXe {
   id: number;
   ten_loai: string;
 }
-
-export default function ProductForm({ initial, onSave, onCancel }: Props) {
-  const [name, setName] = useState(initial?.name ?? "");
-  const [price, setPrice] = useState(initial?.price ?? 0);
-  const [stock, setStock] = useState(initial?.stock ?? 0);
-  const [category, setCategory] = useState(initial?.category ?? "");
-  const [imageUrl, setImageUrl] = useState(initial?.imageUrl ?? "");
-  const [description, setDescription] = useState(initial?.description ?? "");
-  const [idLoaiXe, setIdLoaiXe] = useState<number | "">("");
-  const [loaiXeList, setLoaiXeList] = useState<LoaiXe[]>([]);
-  const [loadingLoaiXe, setLoadingLoaiXe] = useState(true);
-  const [anHien, setAnHien] = useState<number>(
-  (initial as any)?.an_hien ?? 1
-);
-
-  // 🟦 State cho BẢNG bien_the_san_pham
-  const [mauSac, setMauSac] = useState(
-    (initial as any)?.mau_sac ?? "" // nếu lúc edit có sẵn
-  );
-  const [extraImage1, setExtraImage1] = useState(
-    (initial as any)?.hinh_phu1 ?? ""
-  );
-  const [extraImage2, setExtraImage2] = useState(
-    (initial as any)?.hinh_phu2 ?? ""
-  );
-  const [extraImage3, setExtraImage3] = useState(
-    (initial as any)?.hinh_phu3 ?? ""
-  );
-  const [note, setNote] = useState((initial as any)?.ghi_chu ?? "");
-
-  // Load danh sách loại xe
-  useEffect(() => {
-    const fetchLoaiXe = async () => {
-      try {
-        const res = await fetch("http://localhost:3000/api/loai_xe");
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          setLoaiXeList(data);
-        }
-      } catch (err) {
-        console.error("Lỗi khi load loại xe:", err);
-      } finally {
-        setLoadingLoaiXe(false);
-      }
-    };
-    fetchLoaiXe();
-  }, []);
-
-  // Khi initial hoặc loaiXeList đổi thì sync lại form
-  useEffect(() => {
-    setName(initial?.name ?? "");
-    setPrice(initial?.price ?? 0);
-    setStock(initial?.stock ?? 0);
-    setCategory(initial?.category ?? "");
-    setImageUrl(initial?.imageUrl ?? "");
-    setDescription(initial?.description ?? "");
-
-    // Gán lại variant nếu có
-    setMauSac((initial as any)?.mau_sac ?? "");
-    setExtraImage1((initial as any)?.hinh_phu1 ?? "");
-    setExtraImage2((initial as any)?.hinh_phu2 ?? "");
-    setExtraImage3((initial as any)?.hinh_phu3 ?? "");
-    setNote((initial as any)?.ghi_chu ?? "");
-
-    // Tìm id_loai_xe từ category name
-    if (initial?.category && loaiXeList.length > 0) {
-      const found = loaiXeList.find((lx) => lx.ten_loai === initial.category);
-      if (found) {
-        setIdLoaiXe(found.id);
-      }
-    }
-  }, [initial, loaiXeList]);
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!idLoaiXe) {
-      alert("Vui lòng chọn loại xe!");
-      return;
-    }
-
-    const product: Product & {
-  id_loai_xe?: number;
-  an_hien?: number;
+export interface BienThe {
   mau_sac?: string;
+  gia?: number;
+  so_luong?: number;
+  hinh?: string;
   hinh_phu1?: string;
   hinh_phu2?: string;
   hinh_phu3?: string;
   ghi_chu?: string;
-} = {
-  id: initial?.id ?? "",
-  name: name.trim() || "Untitled",
-  price: Number(price) || 0,
-  stock: Number(stock) || 0,
-  category: category.trim(),
+}
+
+// Danh sách loại xe mẫu (fallback nếu API lỗi)
+const LOAI_XE_SEED: LoaiXe[] = [
+  { id: 1, ten_loai: "Xe máy" },
+  { id: 2, ten_loai: "Xe tay ga" },
+  { id: 3, ten_loai: "Ô tô" },
+  { id: 4, ten_loai: "Phụ tùng & Đồ chơi" },
+];
+
+export default function ProductForm({ initial, onSave, onCancel }: Props) {
+  const [name, setName] = useState(
+    initial?.name || initial?.ten_san_pham || ""
+  );
+ const [stock, setStock] = useState<number>(
+  initial?.bien_the
+    ? initial.bien_the.reduce((sum, v) => sum + (v.so_luong ?? 0), 0)
+    : 0
+);
+
+const [price, setPrice] = useState<number>(
+  initial?.bien_the && initial.bien_the.length > 0
+    ? Number(initial.bien_the[0].gia || 0)
+    : 0
+);
+
+
+  const [description, setDescription] = useState(
+    initial?.description || ""
+  );
+  const [imageUrl, setImageUrl] = useState(initial?.imageUrl || "");
+  const [mauSac, setMauSac] = useState(initial?.mau_sac || "");
+  const [hinhPhu1, setHinhPhu1] = useState(initial?.hinh_phu1 || "");
+  const [hinhPhu2, setHinhPhu2] = useState(initial?.hinh_phu2 || "");
+  const [hinhPhu3, setHinhPhu3] = useState(initial?.hinh_phu3 || "");
+  const [ghiChu, setGhiChu] = useState(initial?.ghi_chu || "");
+  const [anHien, setAnHien] = useState<number>(
+    typeof initial?.an_hien === "number" ? initial.an_hien : 2
+  ); // mặc định hiển thị ở danh sách public
+  const [idLoaiXe, setIdLoaiXe] = useState<number | undefined>(
+    initial?.id_loai_xe
+  );
+
+  const [loaiXeList, setLoaiXeList] = useState<LoaiXe[]>([]);
+  const [loaiXeLoading, setLoaiXeLoading] = useState(false);
+  const [loaiXeError, setLoaiXeError] = useState<string | null>(null);
+
+  // Load danh sách loại xe từ API (có fallback khi lỗi/404)
+  useEffect(() => {
+    const fetchLoaiXe = async () => {
+      setLoaiXeLoading(true);
+      setLoaiXeError(null);
+      try {
+        const url = "http://localhost:3000/api/loai_xe";
+        const res = await fetch(url);
+
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          setLoaiXeList(data);
+          return;
+        }
+        throw new Error("Dữ liệu loại xe không hợp lệ");
+      } catch (err: any) {
+        console.warn("⚠️ Lỗi khi load loại xe, dùng danh sách mẫu:", err);
+        setLoaiXeList(LOAI_XE_SEED);
+        setLoaiXeError(
+          "Không tải được danh sách loại xe từ server, đang dùng danh sách mẫu."
+        );
+      } finally {
+        setLoaiXeLoading(false);
+      }
+    };
+
+    fetchLoaiXe();
+  }, []);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!name.trim()) {
+      alert("Vui lòng nhập tên sản phẩm");
+      return;
+    }
+
+    if (!idLoaiXe) {
+      alert("Vui lòng chọn loại xe");
+      return;
+    }
+
+    // ✅ BẮT BUỘC NHẬP GIÁ > 0
+    if (price <= 0) {
+      alert("Vui lòng nhập giá sản phẩm > 0");
+      return;
+    }
+
+    // ✅ TỒN KHO KHÔNG ĐƯỢC ÂM
+    if (stock < 0) {
+      alert("Tồn kho không được nhỏ hơn 0");
+      return;
+    }
+
+    // (tuỳ bạn) có thể bắt buộc có ảnh chính
+    // if (!imageUrl.trim()) {
+    //   alert("Vui lòng nhập URL ảnh chính");
+    //   return;
+    // }
+    const payload: ProductFormData = {
+  id: initial?.id || "",        // hoặc để initial?.id (vì id?: string)
+  name: name.trim(),
+  price,
+  stock,
+  category: "",
   imageUrl: imageUrl.trim(),
   description: description.trim(),
-  id_loai_xe: Number(idLoaiXe),
-  an_hien: anHien,
-
-  // nếu bạn đã có các state này
-  mau_sac: mauSac?.trim?.() ?? "",
-  hinh_phu1: extraImage1?.trim?.() ?? "",
-  hinh_phu2: extraImage2?.trim?.() ?? "",
-  hinh_phu3: extraImage3?.trim?.() ?? "",
-  ghi_chu: note?.trim?.() ?? "",
+  an_hien: Number(anHien),
+  mau_sac: mauSac.trim(),
+  hinh_phu1: hinhPhu1.trim(),
+  hinh_phu2: hinhPhu2.trim(),
+  hinh_phu3: hinhPhu3.trim(),
+  ghi_chu: ghiChu.trim(),
+  id_loai_xe: idLoaiXe,
 };
 
 
-    onSave(product);
-  }
+    onSave(payload);
+  };
+
 
   return (
-    <div className={styles.modalOverlay}>
-      <div className={styles.modalCard}>
-        <h3 className={styles.headerTitle}>
-          {initial ? "Sửa sản phẩm" : "Thêm sản phẩm mới"}
-        </h3>
-        <form onSubmit={handleSubmit}>
-          <div className={styles.formGrid}>
-            {/* TÊN SẢN PHẨM */}
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-6 py-4 border-b">
+          <h2 className="text-lg font-semibold">
+            {initial ? "Sửa sản phẩm" : "Thêm sản phẩm mới"}
+          </h2>
+          <button
+            onClick={onCancel}
+            className="text-gray-500 hover:text-gray-700 text-xl leading-none"
+          >
+            ×
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="px-6 py-4 space-y-4">
+          {loaiXeError && (
+            <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+              {loaiXeError}
+            </div>
+          )}
+
+          {/* Tên + loại xe */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className={styles.formLabel}>Tên</label>
+              <label className="block text-sm font-medium mb-1">
+                Tên sản phẩm
+              </label>
               <input
+                type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className={styles.inputField}
+                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="VD: Nhông xích DID, Bugi NGK..."
               />
             </div>
-
-            {/* LOẠI XE */}
             <div>
-              <label className={styles.formLabel}>Loại xe *</label>
-              <div>
-  <label className={styles.formLabel}>Trạng thái hiển thị</label>
-  <select
-    value={anHien}
-    onChange={(e) => setAnHien(Number(e.target.value))}
-    className={styles.inputField}
-  >
-    <option value={1}>1 - Hiển thị chung</option>
-    <option value={2}>2 - Phụ tùng xe máy (an_hien=2)</option>x``
-    <option value={3}>3 - Phụ tùng ô tô (an_hien=3)</option>
-    <option value={0}>0 - Ẩn sản phẩm</option>
-  </select>
-</div>
-
-              {loadingLoaiXe ? (
-                <div className={styles.inputField}>Đang tải...</div>
-              ) : (
-                <select
-                  value={idLoaiXe}
-                  onChange={(e) => {
-                    const selectedId = e.target.value
-                      ? Number(e.target.value)
-                      : "";
-                    setIdLoaiXe(selectedId);
-                    const selected = loaiXeList.find(
-                      (lx) => lx.id === selectedId
-                    );
-                    setCategory(selected?.ten_loai || "");
-                  }}
-                  className={styles.inputField}
-                  required
-                >
-                 
-                </select>
+              <label className="block text-sm font-medium mb-1">
+                Loại xe (Danh mục)
+              </label>
+              <select
+                value={idLoaiXe ?? ""}
+                onChange={(e) =>
+                  setIdLoaiXe(
+                    e.target.value ? Number(e.target.value) : undefined
+                  )
+                }
+                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">-- Chọn loại xe --</option>
+                {loaiXeList.map((lx) => (
+                  <option key={lx.id} value={lx.id}>
+                    {lx.ten_loai}
+                  </option>
+                ))}
+              </select>
+              {loaiXeLoading && (
+                <p className="text-xs text-gray-400 mt-1">
+                  Đang tải danh sách loại xe...
+                </p>
               )}
             </div>
-              
-            {/* GIÁ + SỐ LƯỢNG */}
+          </div>
+
+          {/* Giá + tồn kho + ẩn/hiện */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className={styles.formLabel}>Giá (VND)</label>
+              <label className="block text-sm font-medium mb-1">
+                Giá
+              </label>
               <input
                 type="number"
+                min={0}
                 value={price}
                 onChange={(e) => setPrice(Number(e.target.value))}
-                className={styles.inputField}
+                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="VD: 150000"
               />
             </div>
             <div>
-              <label className={styles.formLabel}>Số lượng</label>
+              <label className="block text-sm font-medium mb-1">
+                Tồn kho (số lượng)
+              </label>
               <input
                 type="number"
+                min={0}
                 value={stock}
                 onChange={(e) => setStock(Number(e.target.value))}
-                className={styles.inputField}
+                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="VD: 10"
               />
             </div>
-
-            {/* MÀU SẮC (thuộc bien_the_san_pham) */}
-            <div className={styles.fullCol}>
-              <label className={styles.formLabel}>Màu sắc (biến thể)</label>
-              <input
-                placeholder="VD: Đỏ, Đen, Xanh..."
-                value={mauSac}
-                onChange={(e) => setMauSac(e.target.value)}
-                className={styles.inputField}
-              />
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                Trạng thái
+              </label>
+              <select
+                value={anHien}
+                onChange={(e) => setAnHien(Number(e.target.value))}
+                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value={1}>Hiển thị (web)</option>
+                <option value={0}>Ẩn</option>
+                <option value={2}>Hiện ở mục Xe máy</option>
+                <option value={3}>Hiện ở mục Ô tô</option>
+              </select>
             </div>
+          </div>
 
-            {/* ẢNH CHÍNH */}
-            <div className={styles.fullCol}>
-              <label className={styles.formLabel}>Ảnh chính (URL)</label>
+          {/* Ảnh chính + màu sắc */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                Ảnh chính (URL)
+              </label>
               <input
-                aria-label="image url"
-                placeholder="https://..."
+                type="text"
                 value={imageUrl}
                 onChange={(e) => setImageUrl(e.target.value)}
-                className={styles.inputField}
-              />
-              {imageUrl && (
-                <div style={{ marginTop: "8px" }}>
-                  <img
-                    src={imageUrl}
-                    alt="Preview"
-                    style={{
-                      maxWidth: "200px",
-                      maxHeight: "200px",
-                      border: "1px solid #ddd",
-                      borderRadius: "4px",
-                      padding: "4px",
-                    }}
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = "none";
-                    }}
-                  />
-                </div>
-              )}
-            </div>
-
-            {/* ẢNH PHỤ */}
-            <div className={styles.fullCol}>
-              <label className={styles.formLabel}>Ảnh phụ 1 (URL)</label>
-              <input
+                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="https://..."
-                value={extraImage1}
-                onChange={(e) => setExtraImage1(e.target.value)}
-                className={styles.inputField}
               />
             </div>
-            <div className={styles.fullCol}>
-              <label className={styles.formLabel}>Ảnh phụ 2 (URL)</label>
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                Màu sắc (nếu có)
+              </label>
               <input
-                placeholder="https://..."
-                value={extraImage2}
-                onChange={(e) => setExtraImage2(e.target.value)}
-                className={styles.inputField}
-              />
-            </div>
-            <div className={styles.fullCol}>
-              <label className={styles.formLabel}>Ảnh phụ 3 (URL)</label>
-              <input
-                placeholder="https://..."
-                value={extraImage3}
-                onChange={(e) => setExtraImage3(e.target.value)}
-                className={styles.inputField}
-              />
-            </div>
-
-            {/* MÔ TẢ + GHI CHÚ */}
-            <div className={styles.fullCol}>
-              <label className={styles.formLabel}>Mô tả</label>
-              <textarea
-                aria-label="description"
-                placeholder="Mô tả ngắn"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={4}
-                className={styles.textareaField}
-              />
-            </div>
-
-            <div className={styles.fullCol}>
-              <label className={styles.formLabel}>Ghi chú (cho biến thể)</label>
-              <textarea
-                placeholder="Ghi chú thêm cho biến thể (nếu có)"
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                rows={3}
-                className={styles.textareaField}
+                type="text"
+                value={mauSac}
+                onChange={(e) => setMauSac(e.target.value)}
+                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="VD: Đỏ, Đen, Xanh..."
               />
             </div>
           </div>
 
-          <div className={styles.formActions}>
+          {/* Ảnh phụ */}
+          <div>
+            <label className="block text-sm font-medium mb-1">
+              Ảnh phụ (URL) – tùy chọn
+            </label>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <input
+                type="text"
+                value={hinhPhu1}
+                onChange={(e) => setHinhPhu1(e.target.value)}
+                className="w-full border rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Ảnh phụ 1"
+              />
+              <input
+                type="text"
+                value={hinhPhu2}
+                onChange={(e) => setHinhPhu2(e.target.value)}
+                className="w-full border rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Ảnh phụ 2"
+              />
+              <input
+                type="text"
+                value={hinhPhu3}
+                onChange={(e) => setHinhPhu3(e.target.value)}
+                className="w-full border rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Ảnh phụ 3"
+              />
+            </div>
+          </div>
+
+          {/* Mô tả */}
+          <div>
+            <label className="block text-sm font-medium mb-1">
+              Mô tả sản phẩm
+            </label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={3}
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Mô tả chi tiết: chất liệu, ưu điểm, bảo hành..."
+            />
+          </div>
+
+          {/* Ghi chú */}
+          <div>
+            <label className="block text-sm font-medium mb-1">
+              Ghi chú nội bộ (không hiển thị khách)
+            </label>
+            <textarea
+              value={ghiChu}
+              onChange={(e) => setGhiChu(e.target.value)}
+              rows={2}
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="VD: Hàng mới về, ưu tiên đẩy bán, kiểm tra tồn kho mỗi tuần..."
+            />
+          </div>
+
+          {/* Buttons */}
+          <div className="flex justify-end gap-3 pt-2 border-t mt-2">
             <button
               type="button"
               onClick={onCancel}
-              className={styles.btn}
+              className="px-4 py-2 rounded-lg border text-sm text-gray-600 hover:bg-gray-50"
             >
               Hủy
             </button>
-            <button type="submit" className={styles.btnPrimary}>
-              {initial ? "Lưu" : "Tạo"}
+            <button
+              type="submit"
+              className="px-5 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700"
+            >
+              {initial ? "Lưu thay đổi" : "Thêm sản phẩm"}
             </button>
           </div>
         </form>

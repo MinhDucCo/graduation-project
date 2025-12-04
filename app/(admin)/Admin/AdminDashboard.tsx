@@ -10,9 +10,10 @@ import SettingsForm from './components/SettingsForm';
 import type { SettingsData } from './components/SettingsForm';
 import DashboardStats from './components/DashboardStats';
 import NewsList from "./components/NewsList";
-
 import styles from './admin.module.css';
+import CommentList from "./components/CommentList";
 import { api } from "@/utils1/api";
+
 
 
 export interface Product {
@@ -33,7 +34,6 @@ export interface Product {
   ghi_chu?: string;
   id_loai_xe?: number;
 }
-
 
 export interface OrderItem {
   productId: string;
@@ -70,6 +70,7 @@ function mapDbStatusToOrderStatus(dbStatus: string): OrderStatus {
   if (st === "hoàn tất" || st === "done") return "done";
 
   return "pending";
+
 }
 
 export function mapOrderStatusToDbStatus(status: OrderStatus) {
@@ -98,7 +99,7 @@ function uid() {
 export default function AdminDashboard() {
   const router = useRouter();
   const [authLoading, setAuthLoading] = useState(true);
-  const [tab, setTab] = useState<'Home' | 'Products' | 'Orders' | 'Users' | 'News' | 'Settings'>('Home');
+  const [tab, setTab] = useState<'Home' | 'Products' | 'Orders' | 'Users' | 'News' | 'Settings' | 'Comment'>('Home');
   const [products, setProducts] = useState<Product[]>([]);
   const [editing, setEditing] = useState<Product | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -121,12 +122,14 @@ export default function AdminDashboard() {
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
   const [rangePreset, setRangePreset] = useState<'7d' | '15d' | 'this-month' | 'custom'>('7d');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   // News state
   const [news, setNews] = useState([]);
   const [newsLoading, setNewsLoading] = useState(true);
-  const [newsQuery, setNewsQuery] = useState("")
+  const [newsQuery, setNewsQuery] = useState("");
+  // State để lưu bình luận
+const [comments, setComments] = useState<any[]>([]);
+const [commentsLoading, setCommentsLoading] = useState(false);
+
 
   // Kiểm tra xác thực & vai trò admin
   useEffect(() => {
@@ -455,7 +458,7 @@ export default function AdminDashboard() {
     return () => { mounted = false; };
   }, []);
 
-  // 
+  // Load orders (API, fallback localStorage)
   useEffect(() => {
     if (tab !== 'Orders' && tab !== 'Home') return;
     let mounted = true;
@@ -514,71 +517,60 @@ export default function AdminDashboard() {
 
   // Load users (API, fallback localStorage)
   useEffect(() => {
-    if (tab !== 'Users') return;
-    let mounted = true;
+  if (tab !== 'Users') return;
+  let mounted = true;
 
-    // Only fetch if users are empty to prevent infinite loop
-    if (users.length > 0) {
-      return;
-    }
+  if (users.length > 0) {
+    return;
+  }
 
-    (async () => {
-      setUsersLoading(true);
+  (async () => {
+    setUsersLoading(true);
+    try {
+      const res = await api.get('/admin/users', { withCredentials: true });
+      if (mounted && Array.isArray(res.data)) {
+        const normalized = res.data.map((u: any) => ({
+          ...u,
+          id: String(u.id),
+          trang_thai: u.trang_thai ?? (u.khoa ? 'locked' : 'active'),
+        }));
+
+        setUsers(normalized);
+        localStorage.setItem('admin_users_v1', JSON.stringify(normalized));
+        return;
+      }
+    } catch (e) {
+      if (!mounted) return;
       try {
-        const res = await api.get('/admin/users', { withCredentials: true });
-        if (mounted && Array.isArray(res.data)) {
-          setUsers(res.data);
-          localStorage.setItem('admin_users_v1', JSON.stringify(res.data));
-          return;
-        }
-      } catch (e) {
-        if (!mounted) return;
-        try {
-          const raw = localStorage.getItem('admin_users_v1');
-          if (raw) {
-            try {
-              const parsed = JSON.parse(raw);
-              if (Array.isArray(parsed) && mounted) {
-                setUsers(parsed);
-              } else {
-                throw new Error('Invalid data format');
-              }
-            } catch (parseError) {
-              console.error('Failed to parse users from localStorage', parseError);
-              // Clear invalid data
-              localStorage.removeItem('admin_users_v1');
-              // Fall through to seed data
-              if (mounted) {
-                const seed = [
-                  { id: 'u1', ho_ten: 'Admin', email: 'admin@example.com', vai_tro: 1, trang_thai: 'active' },
-                  { id: 'u2', ho_ten: 'User A', email: 'usera@example.com', vai_tro: 0, trang_thai: 'active' },
-                ];
-                setUsers(seed);
-                localStorage.setItem('admin_users_v1', JSON.stringify(seed));
-              }
-            }
-          } else if (mounted) {
-            const seed = [
-              { id: 'u1', ho_ten: 'Admin', email: 'admin@example.com', vai_tro: 1, trang_thai: 'active' },
-              { id: 'u2', ho_ten: 'User A', email: 'usera@example.com', vai_tro: 0, trang_thai: 'active' },
-            ];
-            setUsers(seed);
-            localStorage.setItem('admin_users_v1', JSON.stringify(seed));
-          }
-        } catch (localError) {
-          console.error('Failed to load users from localStorage', localError);
-          if (mounted) {
+        const raw = localStorage.getItem('admin_users_v1');
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) {
+            setUsers(parsed);
+          } else {
+            console.error('Invalid data format in localStorage');
+            localStorage.removeItem('admin_users_v1');
             setUsers([]);
           }
+        } else {
+          setUsers([]);
         }
-      } finally {
-        if (mounted) {
-          setUsersLoading(false);
-        }
+      } catch (localError) {
+        console.error('Failed to load users from localStorage', localError);
+        setUsers([]);
       }
-    })();
-    return () => { mounted = false; };
-  }, [tab]);
+    } finally {
+      if (mounted) {
+        setUsersLoading(false);
+      }
+    }
+  })();
+
+  return () => {
+    mounted = false;
+  };
+}, [tab]);
+
 
   // Load settings (API, fallback local)
   //
@@ -664,6 +656,15 @@ export default function AdminDashboard() {
     setShowForm(true);
   }
   // Looad Tin tức (API, fallback localStorage)
+  // ham chuan hoa chuoi: ve chu thuong, bo dau, bo ky tu la
+  const normalizeText = (s: string | undefined | null) =>
+    String(s || "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "") // bo dau
+      .replace(/đ/g, "d")
+      .trim();
+
   useEffect(() => {
     const loadNews = async () => {
       setNewsLoading(true);
@@ -686,7 +687,32 @@ export default function AdminDashboard() {
 
     loadNews();
   }, []);
+// Load bình luận (API)
+  useEffect(() => {
+  if (tab !== "Comment") return; // chỉ load khi tab Comment
+  let mounted = true;
 
+  const fetchComments = async () => {
+    setCommentsLoading(true);
+    try {
+      const res = await api.get("/admin/comments", { withCredentials: true });
+      if (mounted && Array.isArray(res.data)) {
+        setComments(res.data);
+      }
+    } catch (err) {
+      console.error("Lỗi load bình luận:", err);
+      if (mounted) setComments([]);
+    } finally {
+      if (mounted) setCommentsLoading(false);
+    }
+  };
+
+  fetchComments();
+
+  return () => {
+    mounted = false;
+  };
+}, [tab]);
 
   function handleSave(product: Product & { id_loai_xe?: number }) {
     (async () => {
@@ -718,23 +744,40 @@ export default function AdminDashboard() {
           const res = await api.get('/admin/products', { withCredentials: true });
           if (res.data && Array.isArray(res.data) && res.data.length > 0) {
             const mapProduct = (p: any): Product => {
-              const bienTheArray = p.bien_the_san_phams || p.BienTheSanPhams || [];
-              const bienThe = Array.isArray(bienTheArray) && bienTheArray.length > 0
-                ? (bienTheArray[0].dataValues || bienTheArray[0])
-                : null;
-              const loaiXeData = p.loai_xe || p.LoaiXeModel || p.loaiXeModel || null;
-              const loaiXe = loaiXeData?.dataValues || loaiXeData;
+  const bienTheArray: any[] = p.bien_the_san_phams || p.BienTheSanPhams || [];
+  const bienTheClean = Array.isArray(bienTheArray)
+    ? bienTheArray.map((v) => v.dataValues || v)
+    : [];
 
-              return {
-                id: String(p.ma_san_pham || p.id || uid()),
-                name: p.ten_san_pham || p.name || 'Untitled',
-                price: bienThe ? Number(bienThe.gia || 0) : 0,
-                stock: bienThe ? Number(bienThe.so_luong || 0) : 0,
-                category: loaiXe?.ten_loai || p.id_loai_xe?.toString() || '',
-                imageUrl: bienThe?.hinh || p.hinh || '',
-                description: p.mo_ta || p.description || '',
-              };
-            };
+  // Tính tổng số lượng
+  const totalStock = bienTheClean.reduce((sum, v) => sum + (Number(v.so_luong) || 0), 0);
+
+  // Lấy giá hiển thị: có thể lấy giá của biến thể đầu tiên hoặc giá min/max
+  const displayPrice = bienTheClean.length > 0
+    ? Number(bienTheClean[0].gia || 0)
+    : 0;
+
+  const loaiXeData = p.loai_xe || p.LoaiXeModel || p.loaiXeModel || null;
+  const loaiXe = loaiXeData?.dataValues || loaiXeData;
+
+  return {
+    id: String(p.ma_san_pham || p.id || uid()),
+    name: p.ten_san_pham || p.name || 'Untitled',
+    price: displayPrice,
+    stock: totalStock,
+    category: loaiXe?.ten_loai || p.id_loai_xe?.toString() || '',
+    imageUrl: bienTheClean[0]?.hinh || p.hinh || '',
+    description: p.mo_ta || p.description || '',
+    an_hien: typeof p.an_hien === 'number' ? p.an_hien : Number(p.an_hien || 1),
+    mau_sac: bienTheClean[0]?.mau_sac || '',
+    hinh_phu1: bienTheClean[0]?.hinh_phu1 || '',
+    hinh_phu2: bienTheClean[0]?.hinh_phu2 || '',
+    hinh_phu3: bienTheClean[0]?.hinh_phu3 || '',
+    ghi_chu: bienTheClean[0]?.ghi_chu || '',
+    id_loai_xe: p.id_loai_xe,
+  };
+};
+
             const mapped = res.data.map(mapProduct);
             setProducts(mapped);
             localStorage.setItem(STORAGE_KEY, JSON.stringify(mapped));
@@ -1039,6 +1082,7 @@ export default function AdminDashboard() {
               'Orders',
               'Users',
               'News',
+              'Comment',
               'Settings',
             ] as const).map((t) => (
               <li className="" key={t}>
@@ -1132,6 +1176,11 @@ export default function AdminDashboard() {
                 return d >= startDate && d <= endDate;
               })}
               fallbackProducts={products}
+              onClickPending={() => {
+                // click "Cho xac nhan" -> nhay sang tab Orders + loc Cho xu ly
+                setTab('Orders');
+                setOrderFilter('pending');
+              }}
             />
           </section>
         )}
@@ -1325,7 +1374,7 @@ export default function AdminDashboard() {
           </section>
         )}
         {/* NEWS */}
-        {tab === 'News' && (
+        {tab === "News" && (
           <section>
             <div className={styles.headerActions}>
               <input
@@ -1340,23 +1389,53 @@ export default function AdminDashboard() {
               <div>Đang tải danh sách tin tức...</div>
             ) : (
               <NewsList
-                list={news.filter((n) =>
-                  n.tieu_de.toLowerCase().includes(newsQuery.toLowerCase())
-                )}
+                list={news.filter((n: any) => {
+                  const q = normalizeText(newsQuery);
+                  if (!q) return true;
+
+                  const title = normalizeText(n.tieu_de);
+                  const slug = normalizeText(n.slug);
+                  const desc = normalizeText(n.mo_ta);
+
+                  return (
+                    title.includes(q) ||
+                    slug.includes(q) ||
+                    desc.includes(q)
+                  );
+                })}
+                onCreate={async (data) => {
+                  const res = await api.post("/api/tin_tuc", data);
+                  const created = res.data;
+                  setNews((prev) => [created, ...prev]);
+                }}
                 onDelete={async (id) => {
                   await api.delete(`/api/tin_tuc/${id}`);
-                  setNews((prev) => prev.filter((x) => x.id !== id));
+                  setNews((prev) => prev.filter((x: any) => x.id !== id));
                 }}
                 onUpdate={async (item) => {
                   await api.put(`/api/tin_tuc/${item.id}`, item);
                   setNews((prev) =>
-                    prev.map((x) => (x.id === item.id ? item : x))
+                    prev.map((x: any) => (x.id === item.id ? item : x))
                   );
                 }}
               />
             )}
           </section>
         )}
+    {tab === "Comment" && (
+  <section>
+    {commentsLoading ? (
+      <div>Đang tải bình luận...</div>
+    ) : (
+      <CommentList comments={comments} onUpdate={(updated) => {
+        setComments((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+      }} />
+    )}
+  </section>
+)}
+
+
+
         {/* SETTINGS */}
         {tab === 'Settings' && (
           <section>

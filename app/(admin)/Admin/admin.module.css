@@ -411,8 +411,15 @@
 
 /* Từng dòng trạng thái */
 .statusItem {
-  font-size: 14px;
+  font-size: 16px;
   color: #374151;
+  margin-bottom: 4px;
+  line-height: 20px;
+}
+.statusItemt {
+  font-weight: bold;
+  font-size: 16px;
+  color: #000000;
   margin-bottom: 4px;
   line-height: 20px;
 }

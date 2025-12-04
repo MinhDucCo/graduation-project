@@ -4,16 +4,6 @@ import Link from "next/link";
 export default function AddToCart() {
   const [cart, setCart] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  // useEffect(() => {
-  //   fetchCart(); // fetch lần đầu
-  //   const handleCartUpdated = () => {
-  //   };
-  //   window.addEventListener("cart-updated", handleCartUpdated);
-  //   return () => {
-  //     window.removeEventListener("cart-updated", handleCartUpdated);
-  //   };
-  // }, []);
-
   
   // 🛒 Fetch giỏ hàng: DB nếu login, sessionStorage nếu chưa login
   const fetchCart = async () => {
@@ -52,8 +42,7 @@ export default function AddToCart() {
       setLoading(false);
     }
   };
-
-
+// Lắng nghe sự kiện cập nhật giỏ hàng từ các trang khác
   useEffect(() => {
     fetchCart();
   }, []);

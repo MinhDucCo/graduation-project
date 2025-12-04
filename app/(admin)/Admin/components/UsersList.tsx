@@ -3,13 +3,16 @@
 import React from 'react';
 import styles from '../admin.module.css';
 
+
 interface UserRow {
   id: string;
   ho_ten?: string;
   email?: string;
   vai_tro: number | string; // 1 admin, 0 user
   trang_thai?: 'active' | 'locked';
+  khoa?: boolean; // optional, de phong du lieu cu
 }
+
 
 interface Props {
   users: UserRow[];

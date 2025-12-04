@@ -163,11 +163,18 @@ const DonHangModel = sequelize.define("don_hang", {
   status: { type: DataTypes.STRING(50), defaultValue: "Chờ xác nhận" },
   phuong_thuc: { type: DataTypes.STRING(20), defaultValue: "cod" },
 
-  ngay_giao: { type: DataTypes.DATE, allowNull: true },   // 🔥 THÊM CỘT NÀY
+  ngay_giao: { type: DataTypes.DATE, allowNull: true },
   ly_do_huy: {
-    type: DataTypes.TEXT, // Lý do hủy
-    allowNull: true,      // null nếu chưa hủy
+    type: DataTypes.TEXT,
+    allowNull: true,
   },
+
+  // rating don hang 1-5 sao, null neu chua danh gia
+  rating: {
+    type: DataTypes.TINYINT,
+    allowNull: true,
+  },
+
   id_user: {
     type: DataTypes.INTEGER,
     allowNull: false,
@@ -177,6 +184,7 @@ const DonHangModel = sequelize.define("don_hang", {
   timestamps: false,
   tableName: "don_hang",
 });
+
 
 
 // ============ BẢNG CHI TIẾT ĐƠN HÀNG ============
@@ -230,10 +238,14 @@ const BinhLuan = sequelize.define('binh_luan', {
     type: DataTypes.INTEGER,
     allowNull: false,
   },
-  id_san_pham: {
-    type: DataTypes.INTEGER,
-    allowNull: false,
-  },
+ id_san_pham: {
+  type: DataTypes.STRING(10),
+  references: {
+    model: 'phu_tung_xe',
+    key: 'ma_san_pham'
+  }
+},
+
   noi_dung: {
     type: DataTypes.TEXT,
     allowNull: false,
@@ -263,15 +275,19 @@ DonHangModel.hasMany(ChiTietDonHangModel, { foreignKey: "id_don_hang", onDelete:
 ChiTietDonHangModel.belongsTo(DonHangModel, { foreignKey: "id_don_hang" });
 BinhLuan.belongsTo(Users, { foreignKey: "id_user", as: "user" });
 Users.hasMany(BinhLuan, { foreignKey: "id_user", as: "comments" });
+//association từ bình luận → sản phẩm
+BinhLuan.belongsTo(PhuTungXeModel, { 
+  foreignKey: "id_san_pham",
+  targetKey: "ma_san_pham",
+  as: "product"
+});
 
+PhuTungXeModel.hasMany(BinhLuan, { 
+  foreignKey: "id_san_pham",
+  sourceKey: "ma_san_pham",
+  as: "comments"
+});
 
-
-
-// === Quan hệ (Association) ===
-BinhLuan.associate = (models) => {
-  BinhLuan.belongsTo(models.User, { foreignKey: 'id_user', as: 'user' });
-  BinhLuan.belongsTo(models.SanPham, { foreignKey: 'id_san_pham', as: 'san_pham' });
-};
 
 // phu_tung_xe 1 - n bien_the_san_pham
 PhuTungXeModel.hasMany(BienTheSanPhamModel, { foreignKey: "ma_san_pham" });
@@ -290,10 +306,6 @@ ChiTietDonHangModel.belongsTo(BienTheSanPhamModel, {
   foreignKey: "id_san_pham",
   targetKey: "ma_san_pham",
 });
-
-
-
-
 
 
 // Xuất module để sử dụng

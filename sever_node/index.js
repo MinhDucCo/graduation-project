@@ -2,6 +2,10 @@
  * @typedef {import('./database.js')} DB
  */
 /** @type {DB} */
+const path = require("path");
+require("dotenv").config({ path: path.join(__dirname, ".env") });
+console.log("GOOGLE_CLIENT_ID (server):", process.env.GOOGLE_CLIENT_ID);
+console.log("GOOGLE_CLIENT_ID (server):", process.env.GOOGLE_CLIENT_ID);
 const express = require("express");
 const helmet = require("helmet");
 const bcrypt = require("bcrypt");
@@ -14,8 +18,9 @@ const session = require("express-session");
 const router = express.Router();
 const querystring = require("querystring"); // ✅ thêm dòng này
 const qs = require("qs");
-
 const moment = require("moment");
+const passport = require("passport");
+const GoogleStrategy = require("passport-google-oauth20").Strategy;
 
 
 
@@ -59,6 +64,63 @@ app.use(
     },
   })
 );
+app.use(passport.initialize());
+app.use(passport.session());
+// cấu hình passport google strategyq
+// Serialize / deserialize user cho session
+passport.serializeUser((user, done) => {
+  // user la object user trong DB
+  done(null, user.id);
+});
+
+passport.deserializeUser(async (id, done) => {
+  try {
+    const user = await Users.findByPk(id);
+    done(null, user);
+  } catch (err) {
+    done(err);
+  }
+});
+
+// ⚙️ Cau hinh GoogleStrategy
+passport.use(
+  new GoogleStrategy(
+    {
+      clientID: process.env.GOOGLE_CLIENT_ID,      // dien vao .env
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      callbackURL: "http://localhost:3000/api/auth/google/callback",
+    },
+    async (accessToken, refreshToken, profile, done) => {
+      try {
+        const email =
+          profile.emails && profile.emails[0] ? profile.emails[0].value : null;
+
+        if (!email) {
+          return done(new Error("Google khong tra ve email"));
+        }
+
+        // Tim user theo email
+        let user = await Users.findOne({ where: { email } });
+
+        if (!user) {
+          // Neu chua co -> tao nhanh user moi
+          user = await Users.create({
+            email,
+            ho_ten: profile.displayName || "Nguoi dung Google",
+            mat_khau: "", // co the de trong, vi login qua Google
+            vai_tro: 0,   // user thuong
+          });
+        }
+
+        // Tra user cho passport
+        return done(null, user);
+      } catch (err) {
+        return done(err);
+      }
+    }
+  )
+);
+
 app.use(express.static("public"));
 app.get("/", (req, res) => {
   res.send(`
@@ -73,6 +135,21 @@ app.get("/", (req, res) => {
     </ul>
   `);
 });
+
+
+app.get("/api/loai_xe", async (req, res) => {
+  try {
+    const loaiXeList = await LoaiXeModel.findAll({
+      where: { an_hien: 1 }, // chỉ lấy loại xe đang hiển thị
+      order: [["thu_tu", "ASC"], ["id", "ASC"]],
+    });
+    res.json(loaiXeList);
+  } catch (error) {
+    console.error("Lỗi lấy danh sách loại xe:", error);
+    res.status(500).json({ message: "Lỗi server", error: error.message });
+  }
+});
+
 
 app.get("/api/loai_xe/:id", async (req, res) => {
   try {
@@ -522,7 +599,77 @@ app.put("/api/cart/update/:id", async (req, res) => {
     res.status(500).json({ error: "Cập nhật số lượng thất bại" });
   }
 });
-// API đăng nhập + gôp giỏ hàng 
+
+// Ham gom gio hang tu user 10 sang user that
+function mergeGuestCartToUser(userId) {
+  return (async () => {
+    const guestCart = await GioHangModel.findAll({ where: { id_user: 10 } });
+
+    for (const item of guestCart) {
+      const exists = await GioHangModel.findOne({
+        where: {
+          id_user: userId,
+          id_san_pham: item.id_san_pham,
+          mau_sac: item.mau_sac,
+        },
+      });
+
+      if (exists) {
+        await exists.update({
+          so_luong: exists.so_luong + item.so_luong,
+        });
+      } else {
+        await item.update({ id_user: userId });
+      }
+    }
+
+    await GioHangModel.destroy({ where: { id_user: 10 } });
+    console.log("🧹 Da gom va xoa gio hang tam (id=10)");
+  })();
+}
+
+// --- API Google OAuth2 đăng nhập ---
+app.get(
+  "/api/auth/google/callback",
+  passport.authenticate("google", {
+    failureRedirect: "http://localhost:3100/Login?error=google",
+    session: true,
+  }),
+  async (req, res) => {
+    try {
+      const user = req.user; // do GoogleStrategy tra ve
+
+      // Luu session giong login thuong
+      req.session.user = {
+        id: user.id,
+        email: user.email,
+        ho_ten: user.ho_ten,
+        vai_tro: user.vai_tro,
+      };
+
+      console.log("🔐 Google login thanh cong:", req.session.user);
+
+      // Gop gio hang tam id_user=10
+      await mergeGuestCartToUser(user.id);
+
+      // ✅ Redirect ve NextJS /LoginSuccess (port 3100)
+      return res.redirect("http://localhost:3100/LoginSuccess");
+    } catch (err) {
+      console.error("🔥 Loi trong google callback:", err);
+      return res.redirect("http://localhost:3100/Login?error=server");
+    }
+  }
+);
+
+// --- API lay user theo session ---
+app.get("/api/auth/me", (req, res) => {
+  if (!req.session.user) {
+    return res.status(401).json({ message: "Chua dang nhap" });
+  }
+  return res.json({ user: req.session.user });
+});
+
+// 📩 API: Đăng nhập // API đăng nhập + gôp giỏ hàng id 10
 app.post("/api/auth/login", async (req, res) => {
   const { email, mat_khau } = req.body;
 
@@ -558,10 +705,9 @@ app.post("/api/auth/login", async (req, res) => {
     };
 
     console.log("🔐 Đăng nhập thành công:", req.session.user);
-
     // ✅ GỘP GIỎ HÀNG user 10 → user.id
     const guestCart = await GioHangModel.findAll({ where: { id_user: 10 } });
-
+    await mergeGuestCartToUser(user.id);
     for (const item of guestCart) {
       // Kiểm tra xem đã có món trùng trong giỏ user chưa
       const exists = await GioHangModel.findOne({
@@ -605,6 +751,56 @@ app.post("/api/auth/login", async (req, res) => {
     return res.status(500).json({ message: "Lỗi server!" });
   }
 });
+
+
+// 1) User bam "Dang nhap voi Google" -> redirect toi day
+app.get(
+  "/api/auth/google",
+  passport.authenticate("google", { scope: ["profile", "email"] })
+);
+
+// 2) Google redirect ve callback nay
+app.get(
+  "/api/auth/google/callback",
+  passport.authenticate("google", {
+    failureRedirect: "http://localhost:3001/Login?error=google",
+    session: true,
+  }),
+  async (req, res) => {
+    try {
+      // req.user la user trong DB do strategy tra ve
+      const user = req.user;
+
+      // Luu session giong login thuong
+      req.session.user = {
+        id: user.id,
+        email: user.email,
+        ho_ten: user.ho_ten,
+        vai_tro: user.vai_tro,
+      };
+
+      console.log("🔐 Google login thanh cong:", req.session.user);
+
+      // Gom gio hang user 10 vao user that
+      await mergeGuestCartToUser(user.id);
+
+      // Sau khi xong -> redirect ve trang Next
+      return res.redirect("http://localhost:3100/LoginSuccess");
+    } catch (err) {
+      console.error("🔥 Loi trong google callback:", err);
+      return res.redirect("http://localhost:3100/Login?error=server");
+    }
+  }
+);
+app.get("/api/auth/me", (req, res) => {
+  if (!req.session.user) {
+    return res.status(401).json({ message: "Chua dang nhap" });
+  }
+
+  return res.json({ user: req.session.user });
+});
+
+
 
 // 📩 API: Gửi thông tin liên hệ
 app.post("/api/lien-he", async (req, res) => {
@@ -829,80 +1025,6 @@ app.get("/api/users/:id", async (req, res) => {
   }
 });
 
-//   const {
-//     ho_ten,
-//     dia_chi,
-//     ten_nguoi_nhan,
-//     dien_thoai,
-//     ghi_chu,
-//     id_user,
-//     san_pham,
-//     phuong_thuc,
-//   } = req.body;
-
-//   if (
-//     !ho_ten ||
-//     !dia_chi ||
-//     !ten_nguoi_nhan ||
-//     !dien_thoai ||
-//     !san_pham ||
-//     san_pham.length === 0
-//   ) {
-//     return res.status(400).json({ message: "Thiếu thông tin bắt buộc!" });
-//   }
-
-//   try {
-//     // ✅ Nếu không có id_user (người chưa đăng nhập) => mặc định dùng user khách id = 10
-//     const finalUserId = id_user || 10;
-
-//     // 1️⃣ Tạo đơn hàng
-//     const donHang = await DonHangModel.create({
-//       ho_ten,
-//       dia_chi,
-//       ten_nguoi_nhan,
-//       dien_thoai,
-//       ghi_chu: ghi_chu || null,
-//       id_user: finalUserId,
-//       status: phuong_thuc === "online" ? "Chờ thanh toán" : "Chờ xác nhận",
-//       phuong_thuc: phuong_thuc || "cod",
-//     });
-
-//     // 2️⃣ Tạo chi tiết đơn hàng
-//     const chiTietData = san_pham.map((item) => ({
-//       id_don_hang: donHang.id,
-//       id_san_pham: item.id_san_pham,
-//       so_luong: item.so_luong,
-//       gia: item.gia,
-//     }));
-
-//     await ChiTietDonHangModel.bulkCreate(chiTietData);
-
-//     // 3️⃣ Xóa giỏ hàng của user sau khi đặt hàng
-//     await GioHangModel.destroy({
-//       where: { id_user: finalUserId },
-//     });
-
-//     // 4️⃣ Tính tổng tiền & trả về kết quả
-//     const tong_tien = chiTietData.reduce(
-//       (sum, item) => sum + item.gia * item.so_luong,
-//       0
-//     );
-
-//     res.status(201).json({
-//       message: "Đặt hàng thành công! Giỏ hàng đã được làm trống.",
-//       don_hang_id: donHang.id,
-//       tong_tien,
-//       phuong_thuc,
-//     });
-//   } catch (error) {
-//     console.error("❌ Lỗi đặt hàng:", error);
-//     res
-//       .status(500)
-//       .json({ message: "Lỗi server khi đặt hàng", error: error.message });
-//   }
-// });
-
-// });
 // 🟢 API lấy chi tiết 1 đơn hàng
 app.get("/api/donhang/:id", async (req, res) => {
   try {
@@ -964,8 +1086,6 @@ app.post("/api/orders/create", async (req, res) => {
   }
 });
 
-
-
 // routes/orders.js
 router.post('/update-status', async (req, res) => {
   const { id, status } = req.body;
@@ -976,8 +1096,6 @@ router.post('/update-status', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
-
 
 
 // API: Tạo URL thanh toán VNPay (ẢO)
@@ -1066,7 +1184,44 @@ app.get("/api/orders", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+// PUT /api/orders/:id/rating - cap nhat rating don hang
+app.put("/api/orders/:id/rating", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rating } = req.body;
 
+    const value = Number(rating);
+
+    if (!Number.isInteger(value) || value < 1 || value > 5) {
+      return res
+        .status(400)
+        .json({ message: "Rating khong hop le, chi chap nhan tu 1 den 5 sao." });
+    }
+
+    const order = await DonHangModel.findByPk(id);
+    if (!order) {
+      return res.status(404).json({ message: "Khong tim thay don hang!" });
+    }
+
+    // ❗ Don hang da co rating thi khong cho danh gia lai
+    if (order.rating != null) {
+      return res
+        .status(400)
+        .json({ message: "Don hang nay da duoc danh gia truoc do." });
+    }
+
+    await order.update({ rating: value });
+
+    return res.json({
+      message: "Danh gia thanh cong!",
+      order,
+    });
+  } catch (err) {
+    console.error("Loi cap nhat rating don hang:", err);
+    return res.status(500).json({ message: "Loi server!" });
+  }
+});
+// PUT /api/orders/cancel/:id - hủy đơn hàng
 app.put("/api/orders/cancel/:id", async (req, res) => {
   try {
     const { id } = req.params;
@@ -1275,186 +1430,284 @@ app.get("/api/admin/products", async (req, res) => {
 });
 
 // POST /api/admin/products - Tạo sản phẩm mới
+// app.post("/api/admin/products", checkAdmin, async (req, res) => {
+//   try {
+//     console.log('📦 POST /api/admin/products - Request body:', JSON.stringify(req.body, null, 2));
+//     const { ten_san_pham, mo_ta, bien_the, id_loai_xe, an_hien } = req.body;
+    
+//     if (!ten_san_pham) {
+//       console.log('❌ Thiếu tên sản phẩm');
+//       return res.status(400).json({ message: 'Thiếu tên sản phẩm!' });
+//     }
+//     if (!id_loai_xe) {
+//       console.log('❌ Thiếu id_loai_xe');
+//       return res.status(400).json({ message: 'Thiếu loại xe (id_loai_xe)!' });
+//     }
+    
+//     // Kiểm tra loại xe có tồn tại không
+//     const idLoaiXeNum = Number(id_loai_xe);
+//     if (isNaN(idLoaiXeNum) || idLoaiXeNum <= 0) {
+//       console.log('❌ id_loai_xe không hợp lệ:', id_loai_xe);
+//       return res.status(400).json({ message: 'ID loại xe không hợp lệ!' });
+//     }
+    
+//     const loaiXe = await LoaiXeModel.findByPk(idLoaiXeNum);
+//     if (!loaiXe) {
+//       console.log('❌ Loại xe không tồn tại, id_loai_xe:', idLoaiXeNum);
+//       const allLoaiXe = await LoaiXeModel.findAll({ limit: 10 });
+//       console.log('📋 Danh sách loại xe có sẵn:', allLoaiXe.map(lx => ({ id: lx.id, ten: lx.ten_loai })));
+//       return res.status(400).json({ 
+//         message: `Loại xe với ID ${idLoaiXeNum} không tồn tại!`,
+//         availableIds: allLoaiXe.map(lx => lx.id)
+//       });
+//     }
+    
+//     console.log('✅ Loại xe hợp lệ:', loaiXe.id, '-', loaiXe.ten_loai);
+    
+//     // Tạo sản phẩm - để DB tự tạo mã nếu không có
+//     let ma_san_pham = req.body.ma_san_pham;
+//     if (ma_san_pham !== undefined && ma_san_pham !== null && ma_san_pham !== '') {
+//       const maNum = Number(ma_san_pham);
+//       if (!isNaN(maNum) && Number.isInteger(maNum) && maNum > 0) {
+//         ma_san_pham = maNum;
+//       } else {
+//         console.log('❌ ma_san_pham được cung cấp không phải số hợp lệ, sẽ để DB tạo tự động');
+//         ma_san_pham = undefined;
+//       }
+//     } else {
+//       ma_san_pham = undefined;
+//     }
+
+//     console.log('✅ Tạo sản phẩm, dùng ma_san_pham:', ma_san_pham ?? '(auto)');
+    
+//     let product;
+//     try {
+//       const createPayload = {
+//         ten_san_pham,
+//         mo_ta: mo_ta || '',
+//         id_loai_xe: Number(id_loai_xe),
+//         an_hien: an_hien !== undefined ? Number(an_hien) : 1,
+//       };
+//       if (ma_san_pham !== undefined) {
+//         createPayload.ma_san_pham = ma_san_pham;
+//       }
+
+//       product = await PhuTungXeModel.create(createPayload);
+//       console.log('✅ Sản phẩm đã được tạo:', product.ma_san_pham);
+//     } catch (createError) {
+//       console.error('❌ Lỗi khi tạo sản phẩm trong database:', createError);
+//       console.error('❌ Error name:', createError.name);
+//       console.error('❌ Error message:', createError.message);
+      
+//       if (createError.name === 'SequelizeUniqueConstraintError') {
+//         return res.status(400).json({ 
+//           message: 'Mã sản phẩm đã tồn tại!', 
+//           error: createError.message 
+//         });
+//       }
+//       if (createError.name === 'SequelizeForeignKeyConstraintError') {
+//         return res.status(400).json({ 
+//           message: 'Loại xe không hợp lệ!', 
+//           error: createError.message 
+//         });
+//       }
+//       if (createError.name === 'SequelizeValidationError') {
+//         return res.status(400).json({ 
+//           message: 'Dữ liệu không hợp lệ!', 
+//           error: createError.message,
+//           errors: createError.errors 
+//         });
+//       }
+      
+//       throw createError;
+//     }
+    
+//     // Tạo biến thể nếu có
+//     if (bien_the && Array.isArray(bien_the) && bien_the.length > 0) {
+//       console.log('✅ Tạo biến thể, số lượng:', bien_the.length);
+
+//       // Helper: parse number from strings like "1.000.000" or "1,000,000"
+//       const parseNumberSafe = (val) => {
+//         if (val === undefined || val === null) return 0;
+//         if (typeof val === 'number') return val;
+//         const s = String(val).trim();
+//         if (s === '') return 0;
+//         const cleaned = s.replace(/[.,\s]/g, '');
+//         const n = Number(cleaned);
+//         return isNaN(n) ? 0 : n;
+//       };
+
+//       const bienTheData = bien_the.map((bt) => {
+//         const gia = parseNumberSafe(bt.gia);
+//         const so_luong = Math.max(0, Math.floor(parseNumberSafe(bt.so_luong)));
+//         const hinh = (bt.hinh || '').substring(0, 255);
+
+//         return {
+//           ma_san_pham: product.ma_san_pham,
+//           mau_sac: (bt.mau_sac || '').substring(0, 100),
+//           gia: gia >= 0 ? gia : 0,
+//           so_luong: so_luong,
+//           hinh: hinh,
+//           hinh_phu1: (bt.hinh_phu1 || '').substring(0, 255),
+//           hinh_phu2: (bt.hinh_phu2 || '').substring(0, 255),
+//           hinh_phu3: (bt.hinh_phu3 || '').substring(0, 255),
+//           ghi_chu: (bt.ghi_chu || '').substring(0, 255),
+//         };
+//       });
+
+//       console.log('🧾 Dữ liệu biến thể chuẩn bị lưu:', JSON.stringify(bienTheData, null, 2));
+
+//       try {
+//         const createdVariants = await BienTheSanPhamModel.bulkCreate(bienTheData);
+//         try {
+//           const createdInfo = createdVariants.map(v => ({ id: v.id, ma_san_pham: v.ma_san_pham, gia: v.gia, so_luong: v.so_luong }));
+//           console.log('✅ Biến thể đã được tạo, chi tiết:', JSON.stringify(createdInfo, null, 2));
+//         } catch (e) {
+//           console.log('✅ Biến thể đã được tạo (không thể in chi tiết):', e?.message || e);
+//         }
+//       } catch (bienTheError) {
+//         console.error('❌ Lỗi khi tạo biến thể:', bienTheError);
+//         console.warn('⚠️ Sản phẩm đã được tạo nhưng biến thể thất bại');
+//       }
+//     }
+    
+//     // Lấy lại sản phẩm với biến thể
+//     const productWithVariants = await PhuTungXeModel.findByPk(product.ma_san_pham, {
+//       include: [
+//         { model: LoaiXeModel, attributes: ["ten_loai"], required: false },
+//         { model: BienTheSanPhamModel, required: false },
+//       ],
+//     });
+    
+//     if (!productWithVariants) {
+//       console.error('❌ Không tìm thấy sản phẩm sau khi tạo:', product.ma_san_pham);
+//       return res.status(500).json({ 
+//         message: 'Lỗi server! Không thể lấy lại sản phẩm sau khi tạo.',
+//         error: 'Product not found after creation'
+//       });
+//     }
+    
+//     const productJSON = productWithVariants.toJSON ? productWithVariants.toJSON() : productWithVariants;
+    
+//     if (!productJSON.bien_the_san_phams) {
+//       productJSON.bien_the_san_phams = [];
+//     } else if (!Array.isArray(productJSON.bien_the_san_phams)) {
+//       productJSON.bien_the_san_phams = [];
+//     }
+    
+//     console.log('✅ Trả về sản phẩm đã tạo:', productJSON.ma_san_pham);
+//     res.status(201).json(productJSON);
+//   } catch (err) {
+//     console.error('❌ Lỗi tạo sản phẩm:', err);
+//     console.error('❌ Error name:', err.name);
+//     console.error('❌ Error message:', err.message);
+    
+//     const errorResponse = {
+//       message: 'Lỗi server!',
+//       error: err.message,
+//     };
+//     res.status(500).json(errorResponse);
+//   }
+// });
+// POST /api/admin/products - Tao san pham moi
 app.post("/api/admin/products", checkAdmin, async (req, res) => {
   try {
-    console.log('📦 POST /api/admin/products - Request body:', JSON.stringify(req.body, null, 2));
+    console.log("=== POST /api/admin/products ===");
+    console.log("Body:", JSON.stringify(req.body, null, 2));
+
     const { ten_san_pham, mo_ta, bien_the, id_loai_xe, an_hien } = req.body;
-    
+
     if (!ten_san_pham) {
-      console.log('❌ Thiếu tên sản phẩm');
-      return res.status(400).json({ message: 'Thiếu tên sản phẩm!' });
+      return res.status(400).json({ message: "Thieu ten san pham!" });
     }
     if (!id_loai_xe) {
-      console.log('❌ Thiếu id_loai_xe');
-      return res.status(400).json({ message: 'Thiếu loại xe (id_loai_xe)!' });
+      return res.status(400).json({ message: "Thieu loai xe (id_loai_xe)!" });
     }
-    
-    // Kiểm tra loại xe có tồn tại không
+
     const idLoaiXeNum = Number(id_loai_xe);
     if (isNaN(idLoaiXeNum) || idLoaiXeNum <= 0) {
-      console.log('❌ id_loai_xe không hợp lệ:', id_loai_xe);
-      return res.status(400).json({ message: 'ID loại xe không hợp lệ!' });
+      return res.status(400).json({ message: "ID loai xe khong hop le!" });
     }
-    
+
     const loaiXe = await LoaiXeModel.findByPk(idLoaiXeNum);
     if (!loaiXe) {
-      console.log('❌ Loại xe không tồn tại, id_loai_xe:', idLoaiXeNum);
-      const allLoaiXe = await LoaiXeModel.findAll({ limit: 10 });
-      console.log('📋 Danh sách loại xe có sẵn:', allLoaiXe.map(lx => ({ id: lx.id, ten: lx.ten_loai })));
-      return res.status(400).json({ 
-        message: `Loại xe với ID ${idLoaiXeNum} không tồn tại!`,
-        availableIds: allLoaiXe.map(lx => lx.id)
-      });
-    }
-    
-    console.log('✅ Loại xe hợp lệ:', loaiXe.id, '-', loaiXe.ten_loai);
-    
-    // Tạo sản phẩm - để DB tự tạo mã nếu không có
-    let ma_san_pham = req.body.ma_san_pham;
-    if (ma_san_pham !== undefined && ma_san_pham !== null && ma_san_pham !== '') {
-      const maNum = Number(ma_san_pham);
-      if (!isNaN(maNum) && Number.isInteger(maNum) && maNum > 0) {
-        ma_san_pham = maNum;
-      } else {
-        console.log('❌ ma_san_pham được cung cấp không phải số hợp lệ, sẽ để DB tạo tự động');
-        ma_san_pham = undefined;
-      }
-    } else {
-      ma_san_pham = undefined;
+      return res.status(400).json({ message: "Loai xe khong ton tai!" });
     }
 
-    console.log('✅ Tạo sản phẩm, dùng ma_san_pham:', ma_san_pham ?? '(auto)');
-    
-    let product;
-    try {
-      const createPayload = {
-        ten_san_pham,
-        mo_ta: mo_ta || '',
-        id_loai_xe: Number(id_loai_xe),
-        an_hien: an_hien !== undefined ? Number(an_hien) : 1,
-      };
-      if (ma_san_pham !== undefined) {
-        createPayload.ma_san_pham = ma_san_pham;
-      }
+    // tao san pham
+    const product = await PhuTungXeModel.create({
+      ten_san_pham,
+      mo_ta: mo_ta || "",
+      id_loai_xe: idLoaiXeNum,
+      an_hien: an_hien !== undefined ? Number(an_hien) : 1,
+    });
 
-      product = await PhuTungXeModel.create(createPayload);
-      console.log('✅ Sản phẩm đã được tạo:', product.ma_san_pham);
-    } catch (createError) {
-      console.error('❌ Lỗi khi tạo sản phẩm trong database:', createError);
-      console.error('❌ Error name:', createError.name);
-      console.error('❌ Error message:', createError.message);
-      
-      if (createError.name === 'SequelizeUniqueConstraintError') {
-        return res.status(400).json({ 
-          message: 'Mã sản phẩm đã tồn tại!', 
-          error: createError.message 
-        });
-      }
-      if (createError.name === 'SequelizeForeignKeyConstraintError') {
-        return res.status(400).json({ 
-          message: 'Loại xe không hợp lệ!', 
-          error: createError.message 
-        });
-      }
-      if (createError.name === 'SequelizeValidationError') {
-        return res.status(400).json({ 
-          message: 'Dữ liệu không hợp lệ!', 
-          error: createError.message,
-          errors: createError.errors 
-        });
-      }
-      
-      throw createError;
-    }
-    
-    // Tạo biến thể nếu có
+    // tao bien the (neu co)
     if (bien_the && Array.isArray(bien_the) && bien_the.length > 0) {
-      console.log('✅ Tạo biến thể, số lượng:', bien_the.length);
-
-      // Helper: parse number from strings like "1.000.000" or "1,000,000"
       const parseNumberSafe = (val) => {
         if (val === undefined || val === null) return 0;
-        if (typeof val === 'number') return val;
+        if (typeof val === "number") return val;
         const s = String(val).trim();
-        if (s === '') return 0;
-        const cleaned = s.replace(/[.,\s]/g, '');
+        if (s === "") return 0;
+        const cleaned = s.replace(/[.,\s]/g, "");
         const n = Number(cleaned);
         return isNaN(n) ? 0 : n;
       };
 
       const bienTheData = bien_the.map((bt) => {
         const gia = parseNumberSafe(bt.gia);
-        const so_luong = Math.max(0, Math.floor(parseNumberSafe(bt.so_luong)));
-        const hinh = (bt.hinh || '').substring(0, 255);
+        const so_luong = Math.max(
+          0,
+          Math.floor(parseNumberSafe(bt.so_luong))
+        );
 
         return {
-          ma_san_pham: product.ma_san_pham,
-          mau_sac: (bt.mau_sac || '').substring(0, 100),
+          ma_san_pham: product.ma_san_pham || product.id,
+          mau_sac: (bt.mau_sac || "").substring(0, 100),
           gia: gia >= 0 ? gia : 0,
-          so_luong: so_luong,
-          hinh: hinh,
-          hinh_phu1: (bt.hinh_phu1 || '').substring(0, 255),
-          hinh_phu2: (bt.hinh_phu2 || '').substring(0, 255),
-          hinh_phu3: (bt.hinh_phu3 || '').substring(0, 255),
-          ghi_chu: (bt.ghi_chu || '').substring(0, 255),
+          so_luong,
+          hinh: (bt.hinh || "").substring(0, 255),
+          hinh_phu1: (bt.hinh_phu1 || "").substring(0, 255),
+          hinh_phu2: (bt.hinh_phu2 || "").substring(0, 255),
+          hinh_phu3: (bt.hinh_phu3 || "").substring(0, 255),
+          ghi_chu: (bt.ghi_chu || "").substring(0, 255),
         };
       });
 
-      console.log('🧾 Dữ liệu biến thể chuẩn bị lưu:', JSON.stringify(bienTheData, null, 2));
+      await BienTheSanPhamModel.bulkCreate(bienTheData);
+    }
 
-      try {
-        const createdVariants = await BienTheSanPhamModel.bulkCreate(bienTheData);
-        try {
-          const createdInfo = createdVariants.map(v => ({ id: v.id, ma_san_pham: v.ma_san_pham, gia: v.gia, so_luong: v.so_luong }));
-          console.log('✅ Biến thể đã được tạo, chi tiết:', JSON.stringify(createdInfo, null, 2));
-        } catch (e) {
-          console.log('✅ Biến thể đã được tạo (không thể in chi tiết):', e?.message || e);
-        }
-      } catch (bienTheError) {
-        console.error('❌ Lỗi khi tạo biến thể:', bienTheError);
-        console.warn('⚠️ Sản phẩm đã được tạo nhưng biến thể thất bại');
+    // tra ve luon san pham vua tao (neu muon co ca bien the thi co the include)
+    const productWithRelations = await PhuTungXeModel.findByPk(
+      product.ma_san_pham || product.id,
+      {
+        include: [
+          { model: LoaiXeModel, attributes: ["ten_loai"], required: false },
+          { model: BienTheSanPhamModel, required: false },
+        ],
       }
+    );
+
+    const json = productWithRelations
+      ? productWithRelations.toJSON()
+      : product.toJSON
+      ? product.toJSON()
+      : product;
+
+    if (!Array.isArray(json.bien_the_san_phams)) {
+      json.bien_the_san_phams = [];
     }
-    
-    // Lấy lại sản phẩm với biến thể
-    const productWithVariants = await PhuTungXeModel.findByPk(product.ma_san_pham, {
-      include: [
-        { model: LoaiXeModel, attributes: ["ten_loai"], required: false },
-        { model: BienTheSanPhamModel, required: false },
-      ],
-    });
-    
-    if (!productWithVariants) {
-      console.error('❌ Không tìm thấy sản phẩm sau khi tạo:', product.ma_san_pham);
-      return res.status(500).json({ 
-        message: 'Lỗi server! Không thể lấy lại sản phẩm sau khi tạo.',
-        error: 'Product not found after creation'
-      });
-    }
-    
-    const productJSON = productWithVariants.toJSON ? productWithVariants.toJSON() : productWithVariants;
-    
-    if (!productJSON.bien_the_san_phams) {
-      productJSON.bien_the_san_phams = [];
-    } else if (!Array.isArray(productJSON.bien_the_san_phams)) {
-      productJSON.bien_the_san_phams = [];
-    }
-    
-    console.log('✅ Trả về sản phẩm đã tạo:', productJSON.ma_san_pham);
-    res.status(201).json(productJSON);
+
+    console.log("✅ Tao san pham OK:", json.ma_san_pham || json.id);
+    return res.status(201).json(json);
   } catch (err) {
-    console.error('❌ Lỗi tạo sản phẩm:', err);
-    console.error('❌ Error name:', err.name);
-    console.error('❌ Error message:', err.message);
-    
-    const errorResponse = {
-      message: 'Lỗi server!',
+    console.error("❌ Loi tao san pham:", err);
+    return res.status(500).json({
+      message: "Loi server!",
       error: err.message,
-    };
-    res.status(500).json(errorResponse);
+    });
   }
 });
-
 
 // PUT /api/admin/products/:id - Cập nhật sản phẩm
 app.put("/api/admin/products/:id", checkAdmin, async (req, res) => {
@@ -1587,9 +1840,6 @@ app.get("/api/admin/orders", async (req, res) => {
   }
 });
 
-
-
-
 // PUT /api/admin/orders/:id/status - Cập nhật trạng thái đơn hàng
 app.put("/api/admin/orders/:id/status", checkAdmin, async (req, res) => {
   try {
@@ -1630,7 +1880,6 @@ app.get("/api/admin/users", checkAdmin, async (req, res) => {
     res.status(500).json({ message: 'Lỗi server!' });
   }
 });
-
 
 // PUT /api/admin/users/:id/role - Cập nhật vai trò user
 app.put("/api/admin/users/:id/role", checkAdmin, async (req, res) => {
@@ -1679,6 +1928,62 @@ app.put("/api/admin/users/:id/status", checkAdmin, async (req, res) => {
   }
 });
 
+app.get("/api/admin/comments", async (req, res) => {
+  try {
+    const comments = await BinhLuan.findAll({
+      include: [
+        {
+          model: Users,
+          as: "user",
+          attributes: ["id", "ho_ten", "email"],
+        },
+        {
+          model: PhuTungXeModel,
+          as: "product",
+          attributes: ["ma_san_pham", "ten_san_pham"],
+        },
+      ],
+      order: [["ngay_tao", "DESC"]],
+    });
+
+    res.json(comments);
+  } catch (err) {
+    console.error("❌ Lỗi API /admin/comments:", err);
+    res.status(500).json({ message: "Server Error", error: err.message });
+  }
+});
+
+app.put("/api/admin/comments/:id/status", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { trang_thai } = req.body; // 0 = hiện, 1 = ẩn
+
+    if (typeof trang_thai !== "number" || ![0, 1].includes(trang_thai)) {
+      return res.status(400).json({ message: "Giá trị trạng_thai không hợp lệ!" });
+    }
+
+    // Lấy bình luận
+    const cmt = await BinhLuan.findByPk(id);
+    if (!cmt) {
+      return res.status(404).json({ message: "Không tìm thấy bình luận!" });
+    }
+
+    // Cập nhật trạng thái
+    cmt.trang_thai = trang_thai;
+    await cmt.save();
+
+    res.json({
+      message: "Cập nhật trạng thái thành công!",
+      id: cmt.id,
+      trang_thai: cmt.trang_thai,
+    });
+
+  } catch (err) {
+    console.error("❌ Lỗi cập nhật trạng thái bình luận:", err);
+    res.status(500).json({ message: "Lỗi server!", error: err.message });
+  }
+});
+
 
 
 // GET /api/admin/settings - Lấy settings
@@ -1714,6 +2019,7 @@ app.put("/api/admin/settings", checkAdmin, async (req, res) => {
     res.status(500).json({ message: 'Lỗi server!' });
   }
 });
+
 
 
 
